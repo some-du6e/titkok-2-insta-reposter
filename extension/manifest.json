@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "TT2IG companion",
+  "description": "A companion extension for TT2IG",
+  "version": "1.0.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TT2IG companion Settings"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.tiktok.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "scripting", "commands"],
+  "host_permissions": ["*://*.tiktok.com/*", "http://localhost:6767/*"],
+  "commands": {
+    "send-tt": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Send current tiktok to server"
+    }
+  }
+}

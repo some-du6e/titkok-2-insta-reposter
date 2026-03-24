@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TT 2 IG Captions</title>
+  <link rel="stylesheet" href="./styles/shared.css" />
+  <link rel="stylesheet" href="./styles/captions.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <h1 class="brand">TT 2 IG</h1>
+
+      <nav class="nav-strip" aria-label="Primary">
+        <a class="nav-button" href="./index.html" aria-label="Dashboard">Dashboard</a>
+        <a class="nav-button" href="./queue.html" aria-label="Queue">Queue</a>
+        <a class="nav-button" href="./captions.html" aria-current="page" aria-label="Captions">Captions</a>
+      </nav>
+    </header>
+
+    <main class="content captions-page">
+      <section class="captions-hero" aria-label="Captions workspace">
+        <div class="captions-hero__copy">
+          <p>Caption blocks</p>
+        </div>
+      </section>
+
+      <section class="captions-toolbar" aria-label="Caption controls">
+        <div class="captions-toolbar__meta">
+          <div class="captions-toolbar__stats" aria-label="Workspace totals">
+            <div class="toolbar-stat">
+              <span class="toolbar-stat__label">Clouds</span>
+              <strong id="caption-cloud-total">3</strong>
+            </div>
+            <div class="toolbar-stat">
+              <span class="toolbar-stat__label">Characters</span>
+              <strong id="caption-character-total">0</strong>
+            </div>
+          </div>
+          <p
+            id="caption-save-status"
+            class="caption-save-status"
+            aria-live="polite"
+            data-state="loading"
+          >Loading drafts...</p>
+        </div>
+        <button id="add-caption-cloud" class="toolbar-button" type="button">Add caption cloud</button>
+      </section>
+
+      <section
+        id="caption-cloud-list"
+        class="caption-cloud-list"
+        aria-label="Caption clouds"
+        data-save-status="local-only"
+      ></section>
+    </main>
+  </div>
+
+  <template id="caption-cloud-template">
+    <article class="caption-cloud">
+      <div class="caption-cloud__header">
+        <div>
+          <span class="caption-cloud__eyebrow">Caption</span>
+          <h3 class="caption-cloud__title">Caption 1</h3>
+        </div>
+        <div class="caption-cloud__meta">
+          <span class="caption-cloud__count" aria-live="polite">0 characters</span>
+        </div>
+      </div>
+
+      <label class="caption-cloud__label">
+        <span class="caption-cloud__label-text">Caption text</span>
+        <textarea
+          class="caption-cloud__input"
+          rows="12"
+          spellcheck="true"
+          placeholder="Paste a caption blob here."
+        ></textarea>
+      </label>
+
+      <div class="caption-cloud__actions">
+        <button class="cloud-action" type="button" data-action="copy">Copy</button>
+        <button class="cloud-action" type="button" data-action="clear">Clear</button>
+        <button class="cloud-action cloud-action--danger" type="button" data-action="remove">Remove</button>
+      </div>
+    </article>
+  </template>
+
+  <script src="./scripts/captions.js"></script>
+</body>
+</html>

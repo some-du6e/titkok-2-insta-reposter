@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TT 2 IG Queue</title>
+  <link rel="stylesheet" href="./styles/shared.css" />
+  <link rel="stylesheet" href="./styles/queue.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <h1 class="brand">TT 2 IG</h1>
+
+      <nav class="nav-strip" aria-label="Primary">
+        <a class="nav-button" href="./index.html" aria-label="Dashboard">Dashboard</a>
+        <a class="nav-button" href="./queue.html" aria-current="page" aria-label="Queue">Queue</a>
+        <a class="nav-button" href="./captions.html" aria-label="Captions">Captions</a>
+      </nav>
+    </header>
+
+    <main class="content">
+      <section class="hero" aria-label="Queue summary">
+        <div class="hero-copy">
+          <h2>Queue</h2>
+          <p>Queued TikToks, saved captions, and one-click publish actions.</p>
+        </div>
+
+        <div class="queue-stats" aria-label="Queue count">
+          <span id="queue-ready-count">0 videos ready</span>
+        </div>
+      </section>
+
+      <p id="queue-feedback" class="queue-feedback" hidden></p>
+
+      <section
+        id="queue-empty-state"
+        class="queue-empty-state"
+        aria-live="polite"
+        hidden
+      >
+        <strong>No videos in queue yet.</strong>
+        <p>Use the Chrome shortcut on a TikTok page to send a clip here.</p>
+      </section>
+
+      <section
+        id="queue-grid"
+        class="queue-grid"
+        aria-label="Queued videos"
+      ></section>
+    </main>
+  </div>
+
+  <template id="queue-card-template">
+    <article class="queue-card" data-tone="berry">
+      <div class="phone-top"></div>
+      <div class="video-frame">
+        <div class="video-poster">
+          <div class="poster-art">
+            <div class="poster-label">
+              <strong data-field="title"></strong>
+              <span data-field="status-line"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-copy">
+        <div class="queue-card__headline">
+          <span class="queue-card__eyebrow">Caption</span>
+          <p data-field="caption"></p>
+        </div>
+
+        <dl class="queue-card__details">
+          <div>
+            <dt>Source</dt>
+            <dd><a data-field="source-url" target="_blank" rel="noreferrer"></a></dd>
+          </div>
+          <div>
+            <dt>Created</dt>
+            <dd data-field="created-at"></dd>
+          </div>
+          <div>
+            <dt>File</dt>
+            <dd data-field="filename"></dd>
+          </div>
+          <div data-role="error-wrap" hidden>
+            <dt>Last error</dt>
+            <dd data-field="last-error" class="queue-card__error"></dd>
+          </div>
+        </dl>
+
+        <div class="queue-card__actions">
+          <button type="button" class="queue-action" data-action="publish"></button>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="pill" data-field="status-pill"><span class="pill-dot"></span><span data-field="status"></span></div>
+        <div class="pill pill--index" data-field="index-pill"></div>
+      </div>
+    </article>
+  </template>
+
+  <script src="./scripts/queue.js"></script>
+</body>
+</html>

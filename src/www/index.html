@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TT 2 IG Dashboard</title>
+  <link rel="stylesheet" href="./styles/shared.css" />
+  <link rel="stylesheet" href="./styles/dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <h1 class="brand">TT 2 IG</h1>
+
+      <nav class="nav-strip" aria-label="Primary">
+        <a class="nav-button" href="./index.html" aria-current="page" aria-label="Dashboard">Dashboard</a>
+        <a class="nav-button" href="./queue.html" aria-label="Queue">Queue</a>
+        <a class="nav-button" href="./captions.html" aria-label="Captions">Captions</a>
+      </nav>
+    </header>
+
+    <main class="content dashboard-content">
+      <section class="hero dashboard-hero" aria-label="Dashboard summary">
+        <div class="hero-copy">
+          <h2>Dashboard</h2>
+          <p>Queue status, caption work, and today&apos;s posts.</p>
+        </div>
+
+        <div class="hero-panel" aria-label="Publishing health">
+          <div class="hero-panel__metric">
+            <strong>86%</strong>
+            <span>ready</span>
+          </div>
+          <p>Two items still need caption cleanup.</p>
+        </div>
+      </section>
+
+      <section class="dashboard-grid" aria-label="Dashboard overview">
+        <section class="stack">
+          <div class="overview-band">
+            <article class="metric-card metric-card--bright">
+              <span class="metric-label">Queued now</span>
+              <strong>6 videos</strong>
+              <p>Ready for handoff into the posting queue.</p>
+            </article>
+
+            <article class="metric-card">
+              <span class="metric-label">Needs caption work</span>
+              <strong>2 drafts</strong>
+              <p>Hooks are cut, but copy still needs a final pass.</p>
+            </article>
+
+            <article class="metric-card">
+              <span class="metric-label">Posted today</span>
+              <strong>4 reels</strong>
+              <p>Performance check is due in about 3 hours.</p>
+            </article>
+          </div>
+
+          <article class="panel panel--spotlight">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Next publish</span>
+                <h3>Trend remix</h3>
+              </div>
+              <div class="status-pill"><span class="pill-dot"></span> Scheduled 3:30 PM</div>
+            </div>
+
+            <div class="spotlight-layout">
+              <div class="spotlight-phone" aria-hidden="true">
+                <div class="phone-top"></div>
+                <div class="video-frame">
+                  <div class="video-poster">
+                    <div class="poster-art">
+                      <div class="poster-label">
+                        <strong>Trend remix</strong>
+                        <span>Caption synced and cover ready</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="spotlight-copy">
+                <p>Next reel is scheduled. Caption review is the main remaining task.</p>
+
+                <div class="checklist" aria-label="Publish checklist">
+                  <div class="checklist-item is-done">Video trimmed to vertical safe area</div>
+                  <div class="checklist-item is-done">Instagram cover frame selected</div>
+                  <div class="checklist-item">Hashtags need final review</div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <aside class="stack stack--rail">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Quick actions</span>
+                <h3>Pipeline shortcuts</h3>
+              </div>
+            </div>
+
+            <div class="action-list">
+              <a class="action-card" href="./queue.html">
+                <strong>Open queue</strong>
+                <span>Review upcoming reels in device view.</span>
+              </a>
+              <a class="action-card" href="./captions.html">
+                <strong>Draft captions</strong>
+                <span>Finish copy for the two waiting clips.</span>
+              </a>
+              <a class="action-card" href="./queue.html">
+                <strong>Check posted batch</strong>
+                <span>Audit how today&apos;s reels are performing.</span>
+              </a>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Recent activity</span>
+                <h3>Today&apos;s timeline</h3>
+              </div>
+            </div>
+
+            <div class="timeline">
+              <div class="timeline-item">
+                <span class="timeline-time">12:10</span>
+                <div>
+                  <strong>Story cutdown exported</strong>
+                  <p>Video resized and passed safe-area check.</p>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-time">11:40</span>
+                <div>
+                  <strong>Voiceover edit auto-captioned</strong>
+                  <p>Needs one terminology cleanup before posting.</p>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <span class="timeline-time">10:05</span>
+                <div>
+                  <strong>Hook clip published</strong>
+                  <p>Reel is live and queued for engagement review.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
