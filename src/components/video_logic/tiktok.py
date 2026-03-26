@@ -1,14 +1,29 @@
 from __future__ import annotations
 
 import json
+import mimetypes
+import re
 import subprocess
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+import requests
+
+from src.components.video_logic.render import RenderError, render_photo_reel
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 VIDEOS_DIR = PROJECT_ROOT / "videos"
 LOCAL_YT_DLP = PROJECT_ROOT / "yt-dlp.exe"
+REQUEST_TIMEOUT_SECONDS = 60
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    )
+}
+FILENAME_SAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 class TikTokDownloadError(RuntimeError):
@@ -33,38 +48,230 @@ def get_yt_dlp_command() -> list[str]:
     return ["yt-dlp"]
 
 
-def download_tiktok_video(url: str) -> dict:
+def extract_tiktok_username(url: str) -> str | None:
+    if not is_tiktok_url(url):
+        return None
+
+    path_parts = [part for part in urlparse(url.strip()).path.split("/") if part]
+    if not path_parts:
+        return None
+
+    candidate = path_parts[0]
+    if not candidate.startswith("@") or len(candidate) == 1:
+        return None
+
+    return candidate[1:]
+
+
+def extract_tiktok_video_id(url: str) -> str | None:
+    if not is_tiktok_url(url):
+        return None
+
+    path_parts = [part for part in urlparse(url.strip()).path.split("/") if part]
+    if "video" not in path_parts:
+        return None
+
+    video_index = path_parts.index("video")
+    if video_index + 1 >= len(path_parts):
+        return None
+
+    candidate = path_parts[video_index + 1].strip()
+    if not candidate.isdigit():
+        return None
+
+    return candidate
+
+
+def normalize_tiktok_url(url: str) -> str:
     if not is_tiktok_url(url):
         raise TikTokDownloadError("URL must be a valid TikTok link")
 
-    VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
-    output_template = str(VIDEOS_DIR / "%(uploader_id|creator|unknown)s__%(id)s.%(ext)s")
+    parsed = urlparse(url.strip())
+    query_pairs = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=False)
+        if not key.startswith("utm_")
+    ]
+    normalized_query = urlencode(query_pairs, doseq=True)
+    normalized_path = parsed.path.rstrip("/") or "/"
 
-    metadata_command = [
+    return urlunparse(
+        (
+            parsed.scheme.lower() or "https",
+            (parsed.netloc or "").lower(),
+            normalized_path,
+            "",
+            normalized_query,
+            "",
+        )
+    )
+
+
+def fetch_tiktok_metadata(url: str) -> dict:
+    if not is_tiktok_url(url):
+        raise TikTokDownloadError("URL must be a valid TikTok link")
+
+    command = [
         *get_yt_dlp_command(),
         "--print-json",
         "--no-warnings",
         "--skip-download",
         url,
     ]
-    metadata_result = subprocess.run(
-        metadata_command,
+    result = subprocess.run(
+        command,
         capture_output=True,
         text=True,
         cwd=PROJECT_ROOT,
         check=False,
     )
-    if metadata_result.returncode != 0:
-        raise TikTokDownloadError(
-            metadata_result.stderr.strip() or "Failed to fetch TikTok metadata"
-        )
+    if result.returncode != 0:
+        raise TikTokDownloadError(result.stderr.strip() or "Failed to fetch TikTok metadata")
 
     try:
-        metadata = json.loads(metadata_result.stdout.strip().splitlines()[-1])
+        return json.loads(result.stdout.strip().splitlines()[-1])
     except (IndexError, json.JSONDecodeError) as exc:
         raise TikTokDownloadError("yt-dlp returned unreadable metadata") from exc
 
-    download_command = [
+
+def _sanitize_filename_part(value: str | None, fallback: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        return fallback
+    normalized = FILENAME_SAFE_RE.sub("_", value.strip())
+    normalized = normalized.strip("._-")
+    return normalized or fallback
+
+
+def _build_base_stem(metadata: dict) -> str:
+    creator = (
+        metadata.get("uploader_id")
+        or metadata.get("creator")
+        or metadata.get("channel_id")
+        or metadata.get("uploader")
+    )
+    source_id = metadata.get("id")
+    return (
+        f"{_sanitize_filename_part(str(creator) if creator is not None else None, 'unknown')}"
+        f"__{_sanitize_filename_part(str(source_id) if source_id is not None else None, 'unknown')}"
+    )
+
+
+def _looks_like_music_cdn(url: str | None) -> bool:
+    if not isinstance(url, str):
+        return False
+    hostname = (urlparse(url).hostname or "").lower()
+    return "music" in hostname and "tiktokcdn.com" in hostname
+
+
+def _is_real_video_format(fmt: dict) -> bool:
+    if not isinstance(fmt, dict):
+        return False
+    vcodec = fmt.get("vcodec")
+    if not isinstance(vcodec, str) or vcodec == "none":
+        return False
+    width = fmt.get("width")
+    height = fmt.get("height")
+    if isinstance(width, int) and width > 0 and isinstance(height, int) and height > 0:
+        return True
+    return False
+
+
+def _is_audio_like_format(fmt: dict) -> bool:
+    if not isinstance(fmt, dict):
+        return False
+    acodec = fmt.get("acodec")
+    if not isinstance(acodec, str) or acodec == "none":
+        return False
+    if fmt.get("vcodec") == "none":
+        return True
+    width = fmt.get("width")
+    height = fmt.get("height")
+    url = fmt.get("url")
+    return (
+        ((width in (0, None)) and (height in (0, None)))
+        or _looks_like_music_cdn(url)
+    )
+
+
+def _extract_image_candidates(metadata: dict) -> list[str]:
+    candidates: list[str] = []
+
+    for key in ("images", "image_post", "image_post_info"):
+        raw = metadata.get(key)
+        if isinstance(raw, list):
+            for item in raw:
+                if isinstance(item, str) and item:
+                    candidates.append(item)
+                elif isinstance(item, dict):
+                    for nested_key in ("url", "image_url", "display_image_url"):
+                        value = item.get(nested_key)
+                        if isinstance(value, str) and value:
+                            candidates.append(value)
+                            break
+                    else:
+                        image_url_list = item.get("url_list")
+                        if isinstance(image_url_list, list):
+                            candidates.extend(
+                                value for value in image_url_list if isinstance(value, str) and value
+                            )
+
+    thumbnails = metadata.get("thumbnails")
+    if isinstance(thumbnails, list):
+        sorted_thumbnails = sorted(
+            (
+                item for item in thumbnails
+                if isinstance(item, dict) and isinstance(item.get("url"), str) and item.get("url")
+            ),
+            key=lambda item: (item.get("width") or 0) * (item.get("height") or 0),
+            reverse=True,
+        )
+        candidates.extend(item["url"] for item in sorted_thumbnails)
+
+    deduped: list[str] = []
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped.append(candidate)
+    return deduped
+
+
+def _select_audio_format(metadata: dict) -> dict | None:
+    formats = metadata.get("formats")
+    if not isinstance(formats, list):
+        return None
+
+    candidates = [fmt for fmt in formats if _is_audio_like_format(fmt)]
+    if not candidates:
+        return None
+
+    def _score(fmt: dict) -> tuple[float, float]:
+        abr = fmt.get("abr")
+        filesize = fmt.get("filesize") or fmt.get("filesize_approx") or 0
+        return (
+            float(abr) if isinstance(abr, (int, float)) else 0.0,
+            float(filesize) if isinstance(filesize, (int, float)) else 0.0,
+        )
+
+    return max(candidates, key=_score)
+
+
+def _detect_media_kind(metadata: dict) -> str:
+    if any(_is_real_video_format(fmt) for fmt in metadata.get("formats") or []):
+        return "video"
+
+    if _extract_image_candidates(metadata):
+        return "photo_post"
+
+    if _select_audio_format(metadata) is not None:
+        return "photo_post"
+
+    return "video"
+
+
+def _download_command(url: str, output_template: str) -> list[str]:
+    return [
         *get_yt_dlp_command(),
         "--no-warnings",
         "--no-progress",
@@ -75,18 +282,9 @@ def download_tiktok_video(url: str) -> dict:
         output_template,
         url,
     ]
-    download_result = subprocess.run(
-        download_command,
-        capture_output=True,
-        text=True,
-        cwd=PROJECT_ROOT,
-        check=False,
-    )
-    if download_result.returncode != 0:
-        raise TikTokDownloadError(
-            download_result.stderr.strip() or "Failed to download TikTok video"
-        )
 
+
+def _resolve_downloaded_video_path(metadata: dict) -> Path:
     requested_downloads = metadata.get("requested_downloads") or []
     relative_path = None
     filepath = metadata.get("_filename")
@@ -103,26 +301,153 @@ def download_tiktok_video(url: str) -> dict:
             raise TikTokDownloadError("Downloaded file could not be located")
         relative_path = matching_files[-1]
 
-    video_path = None
-    if relative_path is not None:
-        candidate_path = Path(relative_path)
-        if not candidate_path.is_absolute():
-            candidate_path = (PROJECT_ROOT / candidate_path).resolve()
-        if candidate_path.exists():
-            video_path = candidate_path
+    candidate_path = Path(relative_path)
+    if not candidate_path.is_absolute():
+        candidate_path = (PROJECT_ROOT / candidate_path).resolve()
+    if candidate_path.exists():
+        return candidate_path
 
-    if video_path is None:
-        matching_files = sorted(VIDEOS_DIR.glob(f"*__{metadata.get('id', '')}.*"))
-        if not matching_files:
-            raise TikTokDownloadError("Downloaded file is missing on disk")
-        video_path = matching_files[-1].resolve()
+    matching_files = sorted(VIDEOS_DIR.glob(f"*__{metadata.get('id', '')}.*"))
+    if not matching_files:
+        raise TikTokDownloadError("Downloaded file is missing on disk")
+    return matching_files[-1].resolve()
 
+
+def _guess_extension(url: str, content_type: str | None, fallback: str) -> str:
+    parsed = Path(urlparse(url).path)
+    suffix = parsed.suffix.lower()
+    if suffix:
+        return suffix
+    if isinstance(content_type, str) and content_type:
+        stripped = content_type.strip().lower()
+        if stripped.startswith("."):
+            return stripped
+        if "/" not in stripped and stripped.replace("-", "").replace("_", "").isalnum():
+            return f".{stripped}"
+    if isinstance(content_type, str) and content_type:
+        guessed = mimetypes.guess_extension(content_type.split(";")[0].strip())
+        if guessed:
+            return guessed
+    return fallback
+
+
+def _download_binary(url: str, destination: Path) -> Path:
+    try:
+        with requests.get(
+            url,
+            stream=True,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            headers=REQUEST_HEADERS,
+        ) as response:
+            response.raise_for_status()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            temp_path = destination.with_name(f"{destination.stem}.tmp{destination.suffix}")
+            if temp_path.exists():
+                temp_path.unlink()
+            with temp_path.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=1024 * 128):
+                    if chunk:
+                        handle.write(chunk)
+            temp_path.replace(destination)
+            return destination
+    except requests.RequestException as exc:
+        raise TikTokDownloadError(f"Failed to download media asset: {exc}") from exc
+
+
+def _prepare_video_media(url: str, metadata: dict) -> dict:
+    output_template = str(VIDEOS_DIR / "%(uploader_id|creator|unknown)s__%(id)s.%(ext)s")
+    result = subprocess.run(
+        _download_command(url, output_template),
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise TikTokDownloadError(result.stderr.strip() or "Failed to download TikTok video")
+
+    video_path = _resolve_downloaded_video_path(metadata)
     return {
+        "media_kind": "video",
         "video_path": str(video_path),
         "video_filename": video_path.name,
         "download": {
             "extractor": "yt-dlp",
             "source_id": metadata.get("id"),
             "title": metadata.get("title"),
+            "source_media_kind": "video",
+            "audio_path": None,
+            "image_path": None,
+            "audio_duration_seconds": None,
+            "rendered_from_photo": False,
         },
     }
+
+
+def _prepare_photo_media(metadata: dict) -> dict:
+    image_candidates = _extract_image_candidates(metadata)
+    if not image_candidates:
+        raise TikTokDownloadError("TikTok photo post image could not be found")
+
+    audio_format = _select_audio_format(metadata)
+    if audio_format is None:
+        raise TikTokDownloadError("TikTok photo post audio could not be found")
+
+    audio_url = audio_format.get("url")
+    if not isinstance(audio_url, str) or not audio_url:
+        raise TikTokDownloadError("TikTok photo post audio URL is missing")
+
+    base_stem = _build_base_stem(metadata)
+    image_url = image_candidates[0]
+    image_ext = _guess_extension(image_url, None, ".jpg")
+    audio_ext = _guess_extension(
+        audio_url,
+        audio_format.get("ext") if isinstance(audio_format.get("ext"), str) else None,
+        ".m4a",
+    )
+    image_path = VIDEOS_DIR / f"{base_stem}__photo{image_ext}"
+    audio_path = VIDEOS_DIR / f"{base_stem}__audio{audio_ext}"
+    video_path = VIDEOS_DIR / f"{base_stem}.mp4"
+
+    _download_binary(image_url, image_path)
+    _download_binary(audio_url, audio_path)
+
+    try:
+        render_result = render_photo_reel(image_path, audio_path, video_path)
+    except RenderError as exc:
+        raise TikTokDownloadError(str(exc)) from exc
+
+    return {
+        "media_kind": "photo_post",
+        "video_path": render_result["video_path"],
+        "video_filename": render_result["video_filename"],
+        "download": {
+            "extractor": "yt-dlp",
+            "source_id": metadata.get("id"),
+            "title": metadata.get("title"),
+            "source_media_kind": "photo_post",
+            "audio_path": str(audio_path.resolve()),
+            "image_path": str(image_path.resolve()),
+            "audio_duration_seconds": render_result["audio_duration_seconds"],
+            "rendered_from_photo": True,
+        },
+    }
+
+
+def prepare_tiktok_media(url: str) -> dict:
+    if not is_tiktok_url(url):
+        raise TikTokDownloadError("URL must be a valid TikTok link")
+
+    VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+    metadata = fetch_tiktok_metadata(url)
+    media_kind = _detect_media_kind(metadata)
+
+    if media_kind == "photo_post":
+        return _prepare_photo_media(metadata)
+
+    return _prepare_video_media(url, metadata)
+
+
+def download_tiktok_video(url: str) -> dict:
+    """Backward-compatible alias for the older video-only downloader name."""
+    return prepare_tiktok_media(url)

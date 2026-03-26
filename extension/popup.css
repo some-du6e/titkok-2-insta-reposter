@@ -1,0 +1,79 @@
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #111318;
+  color: #f4f6fb;
+  font: 13px/1.4 "Segoe UI", Tahoma, sans-serif;
+}
+
+.popup {
+  padding: 16px;
+}
+
+.popup h1 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.popup p {
+  margin: 0 0 16px;
+  color: #a9b1c5;
+}
+
+.field,
+.status-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.field-label,
+.status-label {
+  color: #a9b1c5;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #343a4d;
+  border-radius: 8px;
+  background: #181c24;
+  color: #f4f6fb;
+  box-sizing: border-box;
+}
+
+button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #41d1a7;
+  color: #0c1714;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.status {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #282d3b;
+}
+
+.status-value {
+  word-break: break-word;
+}

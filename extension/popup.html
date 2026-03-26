@@ -1,1 +1,61 @@
-minimax is retarded
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TT2IG Monitor</title>
+  <link rel="stylesheet" href="./popup.css" />
+</head>
+<body>
+  <main class="popup">
+    <h1>Favorites Monitor</h1>
+    <p>Keep TikTok favorites open on desktop and TT2IG will scan for new posts.</p>
+
+    <label class="toggle" for="monitor-enabled">
+      <input id="monitor-enabled" type="checkbox" />
+      <span>Enable monitoring</span>
+    </label>
+
+    <label class="field" for="server-base-url">
+      <span class="field-label">Server URL</span>
+      <input id="server-base-url" type="text" value="http://localhost:6767" />
+    </label>
+
+    <label class="field" for="poll-interval-seconds">
+      <span class="field-label">Scan Interval (seconds)</span>
+      <input id="poll-interval-seconds" type="number" step="1" value="60" />
+    </label>
+
+    <button id="save-settings" type="button">Save</button>
+
+    <section class="status" aria-label="Monitor status">
+      <div class="status-row">
+        <span class="status-label">Monitor State</span>
+        <strong id="monitor-state" class="status-value">Disabled</strong>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Last Scan</span>
+        <span id="last-scan-at" class="status-value">Never</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Last Result</span>
+        <span id="last-result" class="status-value">idle</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Items Found</span>
+        <span id="last-items-found" class="status-value">0</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Items Queued</span>
+        <span id="last-items-queued" class="status-value">0</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Last Error</span>
+        <span id="last-error" class="status-value">None</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="./popup.js"></script>
+</body>
+</html>

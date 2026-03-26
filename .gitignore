@@ -213,3 +213,4 @@ captions.json
 queue.json
 
 yt-dlp.exe
+.claude/settings.local.json

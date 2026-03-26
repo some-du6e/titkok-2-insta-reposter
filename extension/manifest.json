@@ -18,7 +18,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "scripting", "commands"],
+  "permissions": ["storage", "scripting", "commands", "alarms", "tabs"],
   "host_permissions": ["*://*.tiktok.com/*", "http://localhost:6767/*"],
   "commands": {
     "send-tt": {

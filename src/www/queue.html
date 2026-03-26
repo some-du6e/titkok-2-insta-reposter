@@ -33,6 +33,125 @@
 
       <p id="queue-feedback" class="queue-feedback" hidden></p>
 
+      <section class="panel queue-controls" aria-label="Automatic posting controls">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Automation</span>
+            <h3>Automatic Posting</h3>
+          </div>
+          <p class="queue-controls__intro">
+            Post the oldest queued reel on a fixed cadence while this app is running.
+          </p>
+        </div>
+
+        <div class="queue-controls__body">
+          <label class="queue-toggle" for="auto-post-enabled">
+            <input id="auto-post-enabled" type="checkbox" />
+            <span>Enable auto-posting</span>
+          </label>
+
+          <label class="queue-field" for="auto-post-interval">
+            <span>Interval in minutes</span>
+            <input id="auto-post-interval" type="number" min="1" step="1" inputmode="numeric" />
+          </label>
+
+          <div class="queue-controls__actions">
+            <button type="button" id="queue-settings-save" class="queue-action queue-action--secondary">
+              Save settings
+            </button>
+            <button type="button" id="queue-run-next" class="queue-action">
+              Run now
+            </button>
+            <button type="button" id="system-update" class="queue-action queue-action--secondary">
+              Update app
+            </button>
+          </div>
+        </div>
+
+        <dl class="queue-runtime">
+          <div>
+            <dt>Next scheduled publish</dt>
+            <dd id="queue-next-run">Not scheduled</dd>
+          </div>
+          <div>
+            <dt>Last auto-post attempt</dt>
+            <dd id="queue-last-attempt">No attempts yet</dd>
+          </div>
+          <div>
+            <dt>Last auto-post result</dt>
+            <dd id="queue-last-result">Nothing recorded yet</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel queue-controls" aria-label="Public collection monitor controls">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Ingestion</span>
+            <h3>Public Collection Monitor</h3>
+          </div>
+          <p class="queue-controls__intro">
+            Poll a public TikTok collection on the server without keeping Chrome open.
+          </p>
+        </div>
+
+        <div class="queue-controls__body queue-controls__body--collection">
+          <label class="queue-toggle" for="public-collection-enabled">
+            <input id="public-collection-enabled" type="checkbox" />
+            <span>Enable collection monitor</span>
+          </label>
+
+          <label class="queue-field queue-field--wide" for="public-collection-url">
+            <span>Public collection URL</span>
+            <input id="public-collection-url" type="url" inputmode="url" placeholder="https://www.tiktok.com/@user/collection/..." />
+          </label>
+
+          <label class="queue-field" for="public-collection-poll-seconds">
+            <span>Poll interval in seconds</span>
+            <input id="public-collection-poll-seconds" type="number" min="1" step="1" inputmode="numeric" />
+          </label>
+
+          <div class="queue-controls__actions">
+            <button type="button" id="public-collection-save" class="queue-action queue-action--secondary">
+              Save monitor
+            </button>
+            <button type="button" id="public-collection-test" class="queue-action queue-action--secondary">
+              Test URL
+            </button>
+            <button type="button" id="public-collection-sync" class="queue-action">
+              Sync now
+            </button>
+          </div>
+        </div>
+
+        <dl class="queue-runtime">
+          <div>
+            <dt>Last monitor status</dt>
+            <dd id="public-collection-status">Idle</dd>
+          </div>
+          <div>
+            <dt>Last checked</dt>
+            <dd id="public-collection-last-checked">Never</dd>
+          </div>
+          <div>
+            <dt>Items found</dt>
+            <dd id="public-collection-items-found">0</dd>
+          </div>
+          <div>
+            <dt>Items queued</dt>
+            <dd id="public-collection-items-queued">0</dd>
+          </div>
+          <div>
+            <dt>Extract strategy</dt>
+            <dd id="public-collection-strategy">none</dd>
+          </div>
+          <div>
+            <dt>Last error</dt>
+            <dd id="public-collection-error">None</dd>
+          </div>
+        </dl>
+      </section>
+
       <section
         id="queue-empty-state"
         class="queue-empty-state"
@@ -52,50 +171,25 @@
   </div>
 
   <template id="queue-card-template">
-    <article class="queue-card" data-tone="berry">
-      <div class="phone-top"></div>
-      <div class="video-frame">
-        <div class="video-poster">
-          <div class="poster-art">
-            <div class="poster-label">
-              <strong data-field="title"></strong>
-              <span data-field="status-line"></span>
-            </div>
-          </div>
+    <article class="queue-card">
+      <div class="queue-card__preview">
+        <img data-field="preview-image" alt="" loading="lazy" hidden />
+        <div class="queue-card__preview-fallback" data-role="preview-fallback">
+          <strong data-field="fallback-title"></strong>
+          <span data-field="fallback-status"></span>
         </div>
       </div>
-      <div class="card-copy">
-        <div class="queue-card__headline">
-          <span class="queue-card__eyebrow">Caption</span>
-          <p data-field="caption"></p>
+      <div class="queue-card__body">
+        <div class="queue-card__topline">
+          <strong data-field="title"></strong>
+          <div class="pill" data-field="status-pill"><span class="pill-dot"></span><span data-field="status"></span></div>
         </div>
 
-        <dl class="queue-card__details">
-          <div>
-            <dt>Source</dt>
-            <dd><a data-field="source-url" target="_blank" rel="noreferrer"></a></dd>
-          </div>
-          <div>
-            <dt>Created</dt>
-            <dd data-field="created-at"></dd>
-          </div>
-          <div>
-            <dt>File</dt>
-            <dd data-field="filename"></dd>
-          </div>
-          <div data-role="error-wrap" hidden>
-            <dt>Last error</dt>
-            <dd data-field="last-error" class="queue-card__error"></dd>
-          </div>
-        </dl>
+        <a class="queue-card__source" data-field="source-url" target="_blank" rel="noreferrer"></a>
 
         <div class="queue-card__actions">
           <button type="button" class="queue-action" data-action="publish"></button>
         </div>
-      </div>
-      <div class="card-meta">
-        <div class="pill" data-field="status-pill"><span class="pill-dot"></span><span data-field="status"></span></div>
-        <div class="pill pill--index" data-field="index-pill"></div>
       </div>
     </article>
   </template>

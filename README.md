@@ -20,6 +20,8 @@ INSTAGRAM_APP_ID=your_app_id
 INSTAGRAM_APP_SECRET=your_app_secret
 INSTAGRAM_ACCESS_TOKEN=your_long_lived_access_token
 INSTAGRAM_ACCOUNT_ID=your_ig_account_id
+AUTO_POST_ENABLED=false
+AUTO_POST_INTERVAL_MINUTES=15
 ```
 
 To get your Instagram Account ID:
@@ -54,6 +56,14 @@ GET https://graph.facebook.com/v25.0/{PAGE_ID}?fields=instagram_business_account
 2. **Create IG container** with that URL
 3. **Poll for processing** (check status_code = FINISHED)
 4. **Publish** the container
+
+## Automatic Queue Posting
+
+- Auto-posting runs inside the Flask app while the server is up.
+- The oldest `queued` item is published every `AUTO_POST_INTERVAL_MINUTES`.
+- Queue page controls can override the `.env` defaults and persist the setting in `queue.json`.
+- Failed items stay marked as `failed`; later queued items continue on later intervals.
+- The `Run now` button on the Queue page triggers one immediate oldest-first publish attempt.
 
 ## Usage
 
