@@ -13,6 +13,21 @@ GRAPH_API_URL = "https://graph.instagram.com/v25.0"
 RUPLOAD_URL = "https://rupload.facebook.com/ig-api-upload"
 
 
+def _format_response_for_logs(response):
+    try:
+        body = response.json()
+    except ValueError:
+        body = response.text.strip()
+    return f"status={response.status_code} body={body}"
+
+
+def _raise_with_response_context(response, context):
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise RuntimeError(f"{context} failed: {_format_response_for_logs(response)}") from exc
+
+
 def get_headers():
     return {
         "Authorization": f"Bearer {INSTAGRAM_ACCESS_TOKEN}",
@@ -50,7 +65,7 @@ def create_media_container(video_url, caption="", media_type="REELS"):
     }
     
     response = requests.post(endpoint, json=payload, headers=get_headers())
-    response.raise_for_status()
+    _raise_with_response_context(response, "Instagram media container creation")
     
     data = response.json()
     return data.get("id")
@@ -77,7 +92,7 @@ def create_resumable_container(caption="", media_type="REELS"):
     }
     
     response = requests.post(endpoint, json=payload, headers=get_headers())
-    response.raise_for_status()
+    _raise_with_response_context(response, "Instagram resumable container creation")
     
     data = response.json()
     return data.get("id")
@@ -112,7 +127,7 @@ def upload_video_local(container_id, file_path):
         headers=headers,
         data=video_data,
     )
-    response.raise_for_status()
+    _raise_with_response_context(response, "Instagram resumable upload")
     
     return response.json()
 
@@ -135,7 +150,7 @@ def check_container_status(container_id):
     }
     
     response = requests.get(endpoint, params=params, headers=get_headers())
-    response.raise_for_status()
+    _raise_with_response_context(response, "Instagram container status check")
     
     return response.json()
 
@@ -158,7 +173,7 @@ def publish_container(container_id):
     }
     
     response = requests.post(endpoint, json=payload, headers=get_headers())
-    response.raise_for_status()
+    _raise_with_response_context(response, "Instagram media publish")
     
     return response.json().get("id")
 
@@ -181,6 +196,10 @@ def wait_for_container_ready(container_id, timeout=300, interval=10):
     while elapsed < timeout:
         status = check_container_status(container_id)
         status_code = status.get("status_code")
+        print(
+            f"[instagram.status] container_id={container_id} elapsed={elapsed}s "
+            f"status={status_code} payload={status}"
+        )
         
         if status_code == "FINISHED":
             return True

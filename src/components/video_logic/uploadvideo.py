@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import requests
 from dotenv import load_dotenv
 
@@ -48,30 +47,36 @@ class InstagramUploader:
             dict with media_id and container_id
         """
         # Step 1: Upload to UploadThing to get a public URL
-        print(f"Uploading {video_path} to UploadThing...")
+        print(
+            f"[instagram.upload] Starting local upload "
+            f"video_path={video_path} media_type={media_type} poll_timeout={poll_timeout}"
+        )
+        print(f"[instagram.upload] Uploading {video_path} to UploadThing...")
         uploadthing_result = upload_to_uploadthing(video_path)
         video_url = uploadthing_result["url"]
-        print(f"UploadThing URL: {video_url}")
+        print(f"[instagram.upload] UploadThing URL: {video_url}")
         
         # Step 2: Create Instagram container with the public URL
-        print(f"Creating Instagram container...")
+        print("[instagram.upload] Creating Instagram container...")
         container_id = create_media_container(
             video_url=video_url,
             caption=caption,
             media_type=media_type,
         )
-        print(f"Container created: {container_id}")
+        print(f"[instagram.upload] Container created: {container_id}")
         
         # Step 3: Wait for video processing
-        print("Waiting for video processing...")
+        print("[instagram.upload] Waiting for video processing...")
         if not wait_for_container_ready(container_id, timeout=poll_timeout):
             status = check_container_status(container_id)
-            raise Exception(f"Container failed with status: {status.get('status_code')}")
+            raise RuntimeError(
+                f"Instagram container processing failed for container_id={container_id}: {status}"
+            )
         
         # Step 4: Publish
-        print("Video processed. Publishing...")
+        print(f"[instagram.upload] Video processed. Publishing container={container_id}...")
         media_id = publish_container(container_id)
-        print(f"Published! Media ID: {media_id}")
+        print(f"[instagram.upload] Published successfully media_id={media_id}")
         
         return {
             "media_id": media_id,
@@ -92,23 +97,29 @@ class InstagramUploader:
         Returns:
             dict with media_id and container_id
         """
-        print(f"Creating media container for: {video_url}")
+        print(
+            f"[instagram.upload] Starting URL publish "
+            f"video_url={video_url} media_type={media_type} poll_timeout={poll_timeout}"
+        )
+        print(f"[instagram.upload] Creating media container for: {video_url}")
         container_id = create_media_container(
             video_url=video_url,
             caption=caption,
             media_type=media_type,
         )
-        print(f"Container created: {container_id}")
+        print(f"[instagram.upload] Container created: {container_id}")
         
         # Poll until the container is ready
-        print("Waiting for video processing...")
+        print("[instagram.upload] Waiting for video processing...")
         if not wait_for_container_ready(container_id, timeout=poll_timeout):
             status = check_container_status(container_id)
-            raise Exception(f"Container failed with status: {status.get('status_code')}")
+            raise RuntimeError(
+                f"Instagram container processing failed for container_id={container_id}: {status}"
+            )
         
-        print("Video processed. Publishing...")
+        print(f"[instagram.upload] Video processed. Publishing container={container_id}...")
         media_id = publish_container(container_id)
-        print(f"Published! Media ID: {media_id}")
+        print(f"[instagram.upload] Published successfully media_id={media_id}")
         
         return {
             "media_id": media_id,

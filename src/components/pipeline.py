@@ -5,6 +5,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+import traceback
 
 from src.components import captions as captions_store
 from src.components import queue_store
@@ -122,6 +123,10 @@ def _publish_selected_item(item: dict) -> dict:
         return _mark_item(item_id, status="failed", last_error="Queued video file is missing")
 
     _mark_item(item_id, status="publishing", last_error=None)
+    print(
+        f"[queue.publish] Starting publish for item={item_id} "
+        f"video_path={video_path} media_type={current_item.get('media_type', 'REELS')}"
+    )
 
     try:
         result = InstagramUploader().upload_video(
@@ -130,8 +135,15 @@ def _publish_selected_item(item: dict) -> dict:
             media_type=current_item.get("media_type", "REELS"),
         )
     except Exception as exc:
-        return _mark_item(item_id, status="failed", last_error=str(exc))
+        error_message = str(exc).strip() or exc.__class__.__name__
+        print(f"[queue.publish] Publish failed for item={item_id}: {error_message}")
+        traceback.print_exc()
+        return _mark_item(item_id, status="failed", last_error=error_message)
 
+    print(
+        f"[queue.publish] Publish completed for item={item_id} "
+        f"container_id={result.get('container_id')} media_id={result.get('media_id')}"
+    )
     return _mark_item(
         item_id,
         status="published",

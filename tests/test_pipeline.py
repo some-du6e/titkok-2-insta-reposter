@@ -174,6 +174,57 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
             media_type="REELS",
         )
 
+    @patch("src.components.pipeline.traceback.print_exc")
+    @patch("src.components.pipeline.InstagramUploader")
+    def test_publish_failure_persists_detailed_error_message(self, mock_uploader, mock_print_exc):
+        video_path = Path(self.temp_dir.name) / "broken.mp4"
+        video_path.write_bytes(b"video")
+        queue_store.append_item(
+            {
+                "id": "item-fail",
+                "source_url": "https://www.tiktok.com/@creator/video/999",
+                "source_url_normalized": "https://www.tiktok.com/@creator/video/999",
+                "source_kind": "manual",
+                "source_id": "999",
+                "video_path": str(video_path.resolve()),
+                "video_filename": video_path.name,
+                "source_media_kind": "video",
+                "rendered_from_photo": False,
+                "source_assets": {
+                    "image_path": None,
+                    "audio_path": None,
+                    "audio_duration_seconds": None,
+                },
+                "caption": "Caption",
+                "media_type": "REELS",
+                "status": "queued",
+                "created_at": "2026-03-24T00:00:00+00:00",
+                "updated_at": "2026-03-24T00:00:00+00:00",
+                "published_at": None,
+                "instagram_media_id": None,
+                "container_id": None,
+                "download": {"title": "Broken post", "rendered_from_photo": False},
+                "preview": {
+                    "status": "missing",
+                    "image_path": None,
+                    "updated_at": "2026-03-24T00:00:00+00:00",
+                    "width": None,
+                    "height": None,
+                    "error": None,
+                },
+                "last_error": None,
+            }
+        )
+        mock_uploader.return_value.upload_video.side_effect = RuntimeError(
+            "Instagram media publish failed: status=400 body={'error': {'message': 'Bad request'}}"
+        )
+
+        result = publish_queue_item("item-fail")
+
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("Instagram media publish failed", result["last_error"])
+        mock_print_exc.assert_called_once()
+
     @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
     @patch("src.components.pipeline.prepare_tiktok_media", side_effect=TikTokDownloadError("Photo post image is missing"))
     def test_prepare_failure_does_not_append_partial_queue_item(

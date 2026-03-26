@@ -14,6 +14,21 @@ HEADERS = {
 }
 
 
+def _format_response_for_logs(response):
+    try:
+        body = response.json()
+    except ValueError:
+        body = response.text.strip()
+    return f"status={response.status_code} body={body}"
+
+
+def _raise_with_response_context(response, context):
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise RuntimeError(f"{context} failed: {_format_response_for_logs(response)}") from exc
+
+
 def prepare_upload(filename, file_size, content_type="video/mp4"):
     """
     Prepare an upload by getting a presigned URL from UploadThing.
@@ -35,7 +50,7 @@ def prepare_upload(filename, file_size, content_type="video/mp4"):
     }
     
     response = requests.post(endpoint, json=payload, headers=HEADERS)
-    response.raise_for_status()
+    _raise_with_response_context(response, "UploadThing prepare upload")
     
     return response.json()
 
@@ -60,7 +75,7 @@ def upload_file(upload_url, file_path, content_type="video/mp4"):
     }
     
     response = requests.post(upload_url, data=file_data, headers=headers)
-    response.raise_for_status()
+    _raise_with_response_context(response, "UploadThing file upload")
     
     return response.json()
 
@@ -93,8 +108,9 @@ def upload_local_file(file_path, filename=None, content_type="video/mp4"):
         }]
     }
     
+    print(f"[uploadthing] Requesting upload slot for filename={filename} size={file_size}")
     response = requests.post(endpoint, json=payload, headers=HEADERS)
-    response.raise_for_status()
+    _raise_with_response_context(response, "UploadThing uploadFiles")
     
     data = response.json()
     file_data = data["data"][0]
@@ -108,14 +124,16 @@ def upload_local_file(file_path, filename=None, content_type="video/mp4"):
     upload_url = file_data["url"]
     
     # POST to the S3 URL with the fields and file
+    print(f"[uploadthing] Uploading file bytes to storage key={file_data['key']}")
     s3_response = requests.post(
         upload_url,
         data=fields,
         files={"file": (filename, file_content, content_type)}
     )
-    s3_response.raise_for_status()
+    _raise_with_response_context(s3_response, "UploadThing storage upload")
     
     # Return the public URL
+    print(f"[uploadthing] Upload complete fileKey={file_data['key']} url={file_data['fileUrl']}")
     return {
         "fileKey": file_data["key"],
         "url": file_data["fileUrl"],
