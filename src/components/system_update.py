@@ -41,6 +41,31 @@ def _normalize_output(value: str | None) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _build_git_status_failure_message(stdout: str, stderr: str) -> str:
+    combined = f"{stdout}\n{stderr}".lower()
+
+    if "dubious ownership" in combined and "safe.directory" in combined:
+        return (
+            "Failed to inspect git status before updating. "
+            f"Git does not trust this repo path. Run "
+            f'`git config --global --add safe.directory "{REPO_ROOT}"` and try again.'
+        )
+
+    if "index.lock" in combined:
+        return (
+            "Failed to inspect git status before updating. "
+            "A stale git lock file is blocking access. Close any other git process and remove `.git/index.lock` if it is left behind."
+        )
+
+    if "not a git repository" in combined:
+        return (
+            "Failed to inspect git status before updating. "
+            "This app is not running from a git clone, so in-app updates are unavailable."
+        )
+
+    return "Failed to inspect git status before updating."
+
+
 def _raise_command_error(
     *,
     message: str,
@@ -118,7 +143,10 @@ def run_system_update() -> dict:
 
         if status_result.returncode != 0:
             _raise_command_error(
-                message="Failed to inspect git status before updating.",
+                message=_build_git_status_failure_message(
+                    _normalize_output(status_result.stdout),
+                    _normalize_output(status_result.stderr),
+                ),
                 stage="status",
                 completed_process=status_result,
             )

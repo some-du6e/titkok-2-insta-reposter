@@ -484,7 +484,10 @@ async function runSystemUpdate() {
     const data = await response.json();
     if (!response.ok) {
       const stageLabel = data.stage ? `${data.stage}: ` : "";
-      throw new Error(`${stageLabel}${data.error || "System update failed"}`);
+      const details = [data.error || "System update failed", data.stderr || data.stdout || ""]
+        .filter(Boolean)
+        .join(" ");
+      throw new Error(`${stageLabel}${details}`);
     }
 
     setFeedback(data.message || "Update pulled. Restart requested.");
