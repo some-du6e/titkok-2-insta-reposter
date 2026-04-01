@@ -123,6 +123,15 @@ def _pull_updated(stdout: str, stderr: str) -> bool:
     return "already up to date" not in combined and "already up-to-date" not in combined
 
 
+def run_system_restart() -> dict:
+    restart = _launch_restart()
+    return {
+        "ok": True,
+        "restart": restart,
+        "message": "Restart requested.",
+    }
+
+
 def run_system_update() -> dict:
     if not _UPDATE_LOCK.acquire(blocking=False):
         raise SystemUpdateError(

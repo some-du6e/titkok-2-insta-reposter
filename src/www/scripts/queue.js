@@ -7,6 +7,7 @@ const autoPostEnabledInput = document.querySelector("#auto-post-enabled");
 const autoPostIntervalInput = document.querySelector("#auto-post-interval");
 const queueSettingsSaveButton = document.querySelector("#queue-settings-save");
 const queueRunNextButton = document.querySelector("#queue-run-next");
+const systemRestartButton = document.querySelector("#system-restart");
 const systemUpdateButton = document.querySelector("#system-update");
 const queueNextRun = document.querySelector("#queue-next-run");
 const queueLastAttempt = document.querySelector("#queue-last-attempt");
@@ -27,6 +28,7 @@ const publicCollectionError = document.querySelector("#public-collection-error")
 const QUEUE_API_URL = "/api/queue";
 const QUEUE_SETTINGS_API_URL = "/api/queue/settings";
 const QUEUE_RUN_NEXT_API_URL = "/api/queue/run-next";
+const SYSTEM_RESTART_API_URL = "/api/system/restart";
 const SYSTEM_UPDATE_API_URL = "/api/system/update";
 const PUBLIC_COLLECTION_STATUS_API_URL = "/api/public-collection/status";
 const PUBLIC_COLLECTION_TEST_API_URL = "/api/public-collection/test";
@@ -499,12 +501,40 @@ async function runSystemUpdate() {
   }
 }
 
+async function runSystemRestart() {
+  systemRestartButton.disabled = true;
+  const previousText = systemRestartButton.textContent;
+  systemRestartButton.textContent = "Restarting...";
+
+  try {
+    const response = await fetch(SYSTEM_RESTART_API_URL, {
+      method: "POST",
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const stageLabel = data.stage ? `${data.stage}: ` : "";
+      const details = [data.error || "System restart failed", data.stderr || data.stdout || ""]
+        .filter(Boolean)
+        .join(" ");
+      throw new Error(`${stageLabel}${details}`);
+    }
+
+    setFeedback(data.message || "Restart requested.");
+  } catch (error) {
+    setFeedback(error.message, true);
+  } finally {
+    systemRestartButton.disabled = false;
+    systemRestartButton.textContent = previousText;
+  }
+}
+
 queueGrid.addEventListener("click", (event) => {
   const button = event.target.closest(".queue-action");
   if (
     !button
     || button.id === "queue-settings-save"
     || button.id === "queue-run-next"
+    || button.id === "system-restart"
     || button.id === "system-update"
   ) {
     return;
@@ -519,6 +549,10 @@ queueSettingsSaveButton.addEventListener("click", () => {
 
 queueRunNextButton.addEventListener("click", () => {
   runNextQueuedItem();
+});
+
+systemRestartButton.addEventListener("click", () => {
+  runSystemRestart();
 });
 
 systemUpdateButton.addEventListener("click", () => {

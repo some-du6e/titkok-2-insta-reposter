@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from src.components.api import app
-from src.components.system_update import SystemUpdateError, run_system_update
+from src.components.system_update import SystemUpdateError, run_system_restart, run_system_update
 
 
 def _completed_process(command: list[str], returncode: int = 0, stdout: str = "", stderr: str = ""):
@@ -14,6 +14,14 @@ def _completed_process(command: list[str], returncode: int = 0, stdout: str = ""
 
 
 class SystemUpdateServiceTestCase(unittest.TestCase):
+    @patch("src.components.system_update.subprocess.Popen")
+    def test_restart_only_requests_restart(self, mock_popen):
+        result = run_system_restart()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["restart"]["command"], "pyker restart ig2tt")
+        mock_popen.assert_called_once()
+
     @patch("src.components.system_update.subprocess.Popen")
     @patch("src.components.system_update.subprocess.run")
     def test_clean_repo_pull_and_restart_succeed(self, mock_run, mock_popen):
@@ -145,6 +153,25 @@ class SystemUpdateApiTestCase(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["restart"]["command"], "pyker restart ig2tt")
 
+    @patch("src.components.api.run_system_restart")
+    def test_restart_endpoint_returns_success_payload(self, mock_run_system_restart):
+        mock_run_system_restart.return_value = {
+            "ok": True,
+            "restart": {"command": "pyker restart ig2tt", "started": True},
+            "message": "Restart requested.",
+        }
+
+        response = self.client.post(
+            "/api/system/restart",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["restart"]["command"], "pyker restart ig2tt")
+
     @patch("src.components.api.run_system_update")
     def test_update_endpoint_returns_structured_error(self, mock_run_system_update):
         mock_run_system_update.side_effect = SystemUpdateError(
@@ -160,6 +187,22 @@ class SystemUpdateApiTestCase(unittest.TestCase):
         payload = response.get_json()
         self.assertEqual(payload["stage"], "pull")
         self.assertIn("no remote repository", payload["stderr"])
+
+    @patch("src.components.api.run_system_restart")
+    def test_restart_endpoint_returns_structured_error(self, mock_run_system_restart):
+        mock_run_system_restart.side_effect = SystemUpdateError(
+            "Restart command failed to launch.",
+            stage="restart",
+            stdout="",
+            stderr="permission denied",
+        )
+
+        response = self.client.post("/api/system/restart")
+
+        self.assertEqual(response.status_code, 500)
+        payload = response.get_json()
+        self.assertEqual(payload["stage"], "restart")
+        self.assertIn("permission denied", payload["stderr"])
 
 
 if __name__ == "__main__":

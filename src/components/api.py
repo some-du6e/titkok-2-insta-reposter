@@ -24,7 +24,11 @@ from src.components.pipeline import (
 from src.components.preview_service import PreviewGenerationError, build_preview_response
 from src.components.queue_store import QueueItemNotFoundError
 from src.components.queue_worker import start_queue_worker
-from src.components.system_update import SystemUpdateError, run_system_update
+from src.components.system_update import (
+    SystemUpdateError,
+    run_system_restart,
+    run_system_update,
+)
 
 
 load_dotenv()
@@ -204,6 +208,26 @@ def sync_public_collection_route():
 def update_system():
     try:
         return flask.jsonify(run_system_update())
+    except SystemUpdateError as e:
+        return (
+            flask.jsonify(
+                {
+                    "error": str(e),
+                    "stage": e.stage,
+                    "stdout": e.stdout,
+                    "stderr": e.stderr,
+                }
+            ),
+            e.status_code,
+        )
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@app.route("/api/system/restart", methods=["POST"])
+def restart_system():
+    try:
+        return flask.jsonify(run_system_restart())
     except SystemUpdateError as e:
         return (
             flask.jsonify(
