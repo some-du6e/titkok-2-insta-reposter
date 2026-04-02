@@ -27,6 +27,7 @@ class TikTokMediaPrepTestCase(unittest.TestCase):
 
         self.assertEqual(result["media_kind"], "video")
         mock_prepare_video.assert_called_once()
+        self.assertEqual(mock_prepare_video.call_args.kwargs["prepend_cover_intro"], False)
 
     @patch("src.components.video_logic.tiktok._prepare_photo_media")
     @patch("src.components.video_logic.tiktok.fetch_tiktok_metadata")
@@ -55,6 +56,7 @@ class TikTokMediaPrepTestCase(unittest.TestCase):
 
         self.assertEqual(result["media_kind"], "photo_post")
         mock_prepare_photo.assert_called_once()
+        self.assertEqual(mock_prepare_photo.call_args.kwargs["prepend_cover_intro"], False)
 
     @patch("src.components.video_logic.tiktok._prepare_photo_media")
     @patch("src.components.video_logic.tiktok.fetch_tiktok_metadata")
@@ -82,6 +84,64 @@ class TikTokMediaPrepTestCase(unittest.TestCase):
 
         self.assertEqual(result["media_kind"], "photo_post")
         mock_prepare_photo.assert_called_once()
+        self.assertEqual(mock_prepare_photo.call_args.kwargs["prepend_cover_intro"], False)
+
+    @patch("src.components.video_logic.tiktok._prepare_video_media")
+    @patch("src.components.video_logic.tiktok.fetch_tiktok_metadata")
+    def test_prepare_tiktok_media_passes_cover_intro_flag_for_videos(
+        self,
+        mock_fetch_metadata,
+        mock_prepare_video,
+    ):
+        mock_fetch_metadata.return_value = {
+            "id": "123",
+            "formats": [{"vcodec": "h264", "acodec": "aac", "width": 720, "height": 1280}],
+        }
+        mock_prepare_video.return_value = {
+            "media_kind": "video",
+            "download": {"cover_intro_applied": True},
+        }
+
+        result = prepare_tiktok_media(
+            "https://www.tiktok.com/@creator/video/123",
+            prepend_cover_intro=True,
+        )
+
+        self.assertTrue(result["download"]["cover_intro_applied"])
+        self.assertEqual(mock_prepare_video.call_args.kwargs["prepend_cover_intro"], True)
+
+    @patch("src.components.video_logic.tiktok._prepare_photo_media")
+    @patch("src.components.video_logic.tiktok.fetch_tiktok_metadata")
+    def test_prepare_tiktok_media_passes_cover_intro_flag_for_photo_posts(
+        self,
+        mock_fetch_metadata,
+        mock_prepare_photo,
+    ):
+        mock_fetch_metadata.return_value = {
+            "id": "456",
+            "images": [{"url": "https://img.example/photo.jpg"}],
+            "formats": [
+                {
+                    "vcodec": "h264",
+                    "acodec": "aac",
+                    "width": 0,
+                    "height": 0,
+                    "url": "https://sf16-ies-music-va.tiktokcdn.com/audio",
+                }
+            ],
+        }
+        mock_prepare_photo.return_value = {
+            "media_kind": "photo_post",
+            "download": {"cover_intro_applied": True},
+        }
+
+        result = prepare_tiktok_media(
+            "https://www.tiktok.com/@creator/video/456",
+            prepend_cover_intro=True,
+        )
+
+        self.assertTrue(result["download"]["cover_intro_applied"])
+        self.assertEqual(mock_prepare_photo.call_args.kwargs["prepend_cover_intro"], True)
 
     def test_build_base_stem_uses_stable_fallbacks(self):
         stem = _build_base_stem({"uploader_id": None, "id": None, "title": None})

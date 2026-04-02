@@ -9,7 +9,12 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import requests
 
-from src.components.video_logic.render import RenderError, render_photo_reel
+from src.components.video_logic.render import (
+    COVER_IMAGE_PATH,
+    RenderError,
+    prepend_cover_intro_frame,
+    render_photo_reel,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -354,7 +359,7 @@ def _download_binary(url: str, destination: Path) -> Path:
         raise TikTokDownloadError(f"Failed to download media asset: {exc}") from exc
 
 
-def _prepare_video_media(url: str, metadata: dict) -> dict:
+def _prepare_video_media(url: str, metadata: dict, *, prepend_cover_intro: bool = False) -> dict:
     output_template = str(VIDEOS_DIR / "%(uploader_id|creator|unknown)s__%(id)s.%(ext)s")
     result = subprocess.run(
         _download_command(url, output_template),
@@ -367,6 +372,16 @@ def _prepare_video_media(url: str, metadata: dict) -> dict:
         raise TikTokDownloadError(result.stderr.strip() or "Failed to download TikTok video")
 
     video_path = _resolve_downloaded_video_path(metadata)
+    cover_intro_applied = False
+    cover_intro_source_path = None
+    if prepend_cover_intro:
+        try:
+            video_path = prepend_cover_intro_frame(video_path, COVER_IMAGE_PATH, video_path)
+        except RenderError as exc:
+            raise TikTokDownloadError(str(exc)) from exc
+        cover_intro_applied = True
+        cover_intro_source_path = str(COVER_IMAGE_PATH.resolve())
+
     return {
         "media_kind": "video",
         "video_path": str(video_path),
@@ -380,11 +395,13 @@ def _prepare_video_media(url: str, metadata: dict) -> dict:
             "image_path": None,
             "audio_duration_seconds": None,
             "rendered_from_photo": False,
+            "cover_intro_applied": cover_intro_applied,
+            "cover_intro_source_path": cover_intro_source_path,
         },
     }
 
 
-def _prepare_photo_media(metadata: dict) -> dict:
+def _prepare_photo_media(metadata: dict, *, prepend_cover_intro: bool = False) -> dict:
     image_candidates = _extract_image_candidates(metadata)
     if not image_candidates:
         raise TikTokDownloadError("TikTok photo post image could not be found")
@@ -417,10 +434,25 @@ def _prepare_photo_media(metadata: dict) -> dict:
     except RenderError as exc:
         raise TikTokDownloadError(str(exc)) from exc
 
+    final_video_path = Path(render_result["video_path"])
+    cover_intro_applied = False
+    cover_intro_source_path = None
+    if prepend_cover_intro:
+        try:
+            final_video_path = prepend_cover_intro_frame(
+                final_video_path,
+                COVER_IMAGE_PATH,
+                final_video_path,
+            )
+        except RenderError as exc:
+            raise TikTokDownloadError(str(exc)) from exc
+        cover_intro_applied = True
+        cover_intro_source_path = str(COVER_IMAGE_PATH.resolve())
+
     return {
         "media_kind": "photo_post",
-        "video_path": render_result["video_path"],
-        "video_filename": render_result["video_filename"],
+        "video_path": str(final_video_path),
+        "video_filename": final_video_path.name,
         "download": {
             "extractor": "yt-dlp",
             "source_id": metadata.get("id"),
@@ -430,11 +462,13 @@ def _prepare_photo_media(metadata: dict) -> dict:
             "image_path": str(image_path.resolve()),
             "audio_duration_seconds": render_result["audio_duration_seconds"],
             "rendered_from_photo": True,
+            "cover_intro_applied": cover_intro_applied,
+            "cover_intro_source_path": cover_intro_source_path,
         },
     }
 
 
-def prepare_tiktok_media(url: str) -> dict:
+def prepare_tiktok_media(url: str, *, prepend_cover_intro: bool = False) -> dict:
     if not is_tiktok_url(url):
         raise TikTokDownloadError("URL must be a valid TikTok link")
 
@@ -443,9 +477,9 @@ def prepare_tiktok_media(url: str) -> dict:
     media_kind = _detect_media_kind(metadata)
 
     if media_kind == "photo_post":
-        return _prepare_photo_media(metadata)
+        return _prepare_photo_media(metadata, prepend_cover_intro=prepend_cover_intro)
 
-    return _prepare_video_media(url, metadata)
+    return _prepare_video_media(url, metadata, prepend_cover_intro=prepend_cover_intro)
 
 
 def download_tiktok_video(url: str) -> dict:

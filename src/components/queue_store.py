@@ -16,6 +16,7 @@ DEFAULT_AUTO_POST_ENABLED = False
 DEFAULT_AUTO_POST_INTERVAL_MINUTES = 15
 DEFAULT_PUBLIC_COLLECTION_ENABLED = False
 DEFAULT_PUBLIC_COLLECTION_POLL_SECONDS = 300
+DEFAULT_PREPEND_COVER_INTRO_ENABLED = False
 
 
 class QueueItemNotFoundError(KeyError):
@@ -100,6 +101,12 @@ def _normalize_items(raw) -> list[dict]:
                 "audio_duration_seconds": None,
             },
         )
+        download = normalized_item.get("download")
+        if isinstance(download, dict):
+            normalized_download = dict(download)
+            normalized_download.setdefault("cover_intro_applied", False)
+            normalized_download.setdefault("cover_intro_source_path", None)
+            normalized_item["download"] = normalized_download
         normalized_items.append(normalized_item)
 
     return normalized_items
@@ -141,6 +148,7 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
     public_collection_last_items_queued = 0
     public_collection_last_extract_strategy = "none"
     public_collection_last_checked_at = None
+    prepend_cover_intro_enabled = DEFAULT_PREPEND_COVER_INTRO_ENABLED
 
     if isinstance(raw, dict):
         auto_post_enabled = _parse_bool(raw.get("auto_post_enabled"), auto_post_enabled)
@@ -168,6 +176,10 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
             public_collection_last_extract_strategy,
         )
         public_collection_last_checked_at = raw.get("publicCollectionLastCheckedAt")
+        prepend_cover_intro_enabled = _parse_bool(
+            raw.get("prependCoverIntroEnabled"),
+            prepend_cover_intro_enabled,
+        )
 
     parsed_next = _parse_iso(next_auto_post_at)
     parsed_last_attempt = _parse_iso(last_auto_post_attempt_at)
@@ -229,6 +241,7 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
         "publicCollectionLastItemsQueued": public_collection_last_items_queued,
         "publicCollectionLastExtractStrategy": public_collection_last_extract_strategy,
         "publicCollectionLastCheckedAt": parsed_public_checked_at.isoformat() if parsed_public_checked_at else None,
+        "prependCoverIntroEnabled": prepend_cover_intro_enabled,
     }
 
 

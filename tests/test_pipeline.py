@@ -22,6 +22,11 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
     def _restore_queue_path(self):
         queue_store.QUEUE_PATH = self.original_queue_path
 
+    def _save_settings(self, **overrides):
+        settings = queue_store.normalize_settings(None, persist_existing_schedule=False)
+        settings.update(overrides)
+        queue_store.save_settings(settings)
+
     @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
     @patch("src.components.pipeline.prepare_tiktok_media")
     def test_enqueue_standard_video_item_preserves_video_contract(
@@ -31,6 +36,7 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
     ):
         video_path = Path(self.temp_dir.name) / "clip.mp4"
         video_path.write_bytes(b"video")
+        self._save_settings(prependCoverIntroEnabled=True)
         mock_prepare_media.return_value = {
             "media_kind": "video",
             "video_path": str(video_path),
@@ -44,15 +50,22 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
                 "image_path": None,
                 "audio_duration_seconds": None,
                 "rendered_from_photo": False,
+                "cover_intro_applied": True,
+                "cover_intro_source_path": "/tmp/coverrrr.png",
             },
         }
 
-        status, item = enqueue_tiktok_url("https://www.tiktok.com/@creator/video/123")
+        cover_path = Path(self.temp_dir.name) / "coverrrr.png"
+        cover_path.write_bytes(b"image")
+        with patch("src.components.pipeline.COVER_IMAGE_PATH", cover_path):
+            status, item = enqueue_tiktok_url("https://www.tiktok.com/@creator/video/123")
 
         self.assertEqual(status, "queued")
         self.assertEqual(item["source_media_kind"], "video")
         self.assertFalse(item["rendered_from_photo"])
         self.assertEqual(item["source_assets"]["audio_path"], None)
+        self.assertTrue(item["download"]["cover_intro_applied"])
+        self.assertEqual(mock_prepare_media.call_args.kwargs["prepend_cover_intro"], True)
 
     @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
     @patch("src.components.pipeline.prepare_tiktok_media")
@@ -76,6 +89,8 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
                 "image_path": str(Path(self.temp_dir.name) / "photo.jpg"),
                 "audio_duration_seconds": 8.4,
                 "rendered_from_photo": True,
+                "cover_intro_applied": False,
+                "cover_intro_source_path": None,
             },
         }
 
@@ -109,6 +124,8 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
                 "image_path": None,
                 "audio_duration_seconds": 3.1,
                 "rendered_from_photo": True,
+                "cover_intro_applied": False,
+                "cover_intro_source_path": None,
             },
         }
 
@@ -119,6 +136,43 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
         self.assertEqual(second_status, "duplicate")
         self.assertEqual(second_item["id"], first_item["id"])
         self.assertEqual(mock_prepare_media.call_count, 1)
+
+    @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
+    @patch("src.components.pipeline.prepare_tiktok_media")
+    def test_missing_cover_image_auto_disables_setting_and_continues(
+        self,
+        mock_prepare_media,
+        _mock_captions,
+    ):
+        video_path = Path(self.temp_dir.name) / "clip.mp4"
+        video_path.write_bytes(b"video")
+        self._save_settings(prependCoverIntroEnabled=True)
+        mock_prepare_media.return_value = {
+            "media_kind": "video",
+            "video_path": str(video_path),
+            "video_filename": video_path.name,
+            "download": {
+                "extractor": "yt-dlp",
+                "source_id": "123",
+                "title": "Clip",
+                "source_media_kind": "video",
+                "audio_path": None,
+                "image_path": None,
+                "audio_duration_seconds": None,
+                "rendered_from_photo": False,
+                "cover_intro_applied": False,
+                "cover_intro_source_path": None,
+            },
+        }
+
+        missing_cover_path = Path(self.temp_dir.name) / "missing-coverrrr.png"
+        with patch("src.components.pipeline.COVER_IMAGE_PATH", missing_cover_path):
+            status, item = enqueue_tiktok_url("https://www.tiktok.com/@creator/video/123")
+
+        self.assertEqual(status, "queued")
+        self.assertEqual(item["video_path"], str(video_path.resolve()))
+        self.assertEqual(mock_prepare_media.call_args.kwargs["prepend_cover_intro"], False)
+        self.assertFalse(queue_store.get_settings()["prependCoverIntroEnabled"])
 
     @patch("src.components.pipeline.InstagramUploader")
     def test_publish_path_still_uses_rendered_local_mp4_for_photo_posts(self, mock_uploader):

@@ -5,6 +5,7 @@ const queueEmptyState = document.querySelector("#queue-empty-state");
 const queueFeedback = document.querySelector("#queue-feedback");
 const autoPostEnabledInput = document.querySelector("#auto-post-enabled");
 const autoPostIntervalInput = document.querySelector("#auto-post-interval");
+const prependCoverIntroEnabledInput = document.querySelector("#prepend-cover-intro-enabled");
 const queueSettingsSaveButton = document.querySelector("#queue-settings-save");
 const queueRunNextButton = document.querySelector("#queue-run-next");
 const systemRestartButton = document.querySelector("#system-restart");
@@ -134,6 +135,7 @@ function getActionConfig(status) {
 function renderRuntime(settings = {}) {
   autoPostEnabledInput.checked = Boolean(settings.auto_post_enabled);
   autoPostIntervalInput.value = settings.auto_post_interval_minutes || 15;
+  prependCoverIntroEnabledInput.checked = Boolean(settings.prependCoverIntroEnabled);
   queueNextRun.textContent = settings.auto_post_enabled
     ? formatDateTime(settings.next_auto_post_at, "Waiting for schedule")
     : "Disabled";
@@ -298,6 +300,7 @@ async function saveQueueSettings() {
       body: JSON.stringify({
         auto_post_enabled: autoPostEnabledInput.checked,
         auto_post_interval_minutes: interval,
+        prependCoverIntroEnabled: prependCoverIntroEnabledInput.checked,
       }),
     });
     const data = await response.json();
@@ -306,7 +309,7 @@ async function saveQueueSettings() {
     }
 
     renderRuntime(data.settings || {});
-    setFeedback("Auto-post settings saved.");
+    setFeedback("Queue settings saved.");
     await loadQueue({ preserveFeedback: true });
   } catch (error) {
     setFeedback(error.message, true);

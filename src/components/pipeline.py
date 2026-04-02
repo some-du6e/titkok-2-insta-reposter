@@ -29,6 +29,7 @@ class QueueValidationError(QueuePipelineError):
 
 
 PUBLISH_LOCK = threading.RLock()
+COVER_IMAGE_PATH = queue_store.PROJECT_ROOT / "coverrrr.png"
 
 
 def _now() -> datetime:
@@ -62,6 +63,23 @@ def _build_caption(url: str) -> str:
 def _mark_item(item_id: str, **updates) -> dict:
     updates["updated_at"] = _now_iso()
     return queue_store.update_item(item_id, updates)
+
+
+def _resolve_prepend_cover_intro_enabled() -> bool:
+    settings = queue_store.get_settings()
+    enabled = bool(settings.get("prependCoverIntroEnabled"))
+    if not enabled:
+        return False
+
+    if COVER_IMAGE_PATH.exists():
+        return True
+
+    print(
+        "[queue.prepare] Disabling prependCoverIntroEnabled because "
+        f"cover image is missing at {COVER_IMAGE_PATH}"
+    )
+    queue_store.update_settings({"prependCoverIntroEnabled": False})
+    return False
 
 
 def _find_duplicate_item(*, source_id: str | None, normalized_url: str) -> dict | None:
@@ -175,7 +193,10 @@ def enqueue_tiktok_url(
         return "duplicate", duplicate
 
     try:
-        download_result = prepare_tiktok_media(normalized_url)
+        download_result = prepare_tiktok_media(
+            normalized_url,
+            prepend_cover_intro=_resolve_prepend_cover_intro_enabled(),
+        )
     except TikTokDownloadError as exc:
         message = str(exc)
         if "valid TikTok link" in message:
@@ -277,6 +298,12 @@ def update_queue_settings(updates: dict) -> dict:
         if interval < 1:
             raise QueueValidationError("publicCollectionPollSeconds must be at least 1")
         normalized_updates["publicCollectionPollSeconds"] = interval
+
+    if "prependCoverIntroEnabled" in updates:
+        value = updates["prependCoverIntroEnabled"]
+        if not isinstance(value, bool):
+            raise QueueValidationError("prependCoverIntroEnabled must be a boolean")
+        normalized_updates["prependCoverIntroEnabled"] = value
 
     if not normalized_updates:
         raise QueueValidationError("No supported queue settings were provided")
