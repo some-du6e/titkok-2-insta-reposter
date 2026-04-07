@@ -229,7 +229,7 @@ def _extract_image_candidates(metadata: dict) -> list[str]:
             _extend_from_container(raw)
 
     thumbnails = metadata.get("thumbnails")
-    if isinstance(thumbnails, list):
+    if isinstance(thumbnails, list) and not candidates:
         sorted_thumbnails = sorted(
             (
                 item for item in thumbnails
@@ -423,22 +423,25 @@ def _prepare_photo_media(metadata: dict, *, prepend_cover_intro: bool = False) -
         raise TikTokDownloadError("TikTok photo post audio URL is missing")
 
     base_stem = _build_base_stem(metadata)
-    image_url = image_candidates[0]
-    image_ext = _guess_extension(image_url, None, ".jpg")
+    downloaded_image_paths: list[Path] = []
+    for index, image_url in enumerate(image_candidates, start=1):
+        image_ext = _guess_extension(image_url, None, ".jpg")
+        image_path = VIDEOS_DIR / f"{base_stem}__photo_{index:02d}{image_ext}"
+        _download_binary(image_url, image_path)
+        downloaded_image_paths.append(image_path)
+
     audio_ext = _guess_extension(
         audio_url,
         audio_format.get("ext") if isinstance(audio_format.get("ext"), str) else None,
         ".m4a",
     )
-    image_path = VIDEOS_DIR / f"{base_stem}__photo{image_ext}"
     audio_path = VIDEOS_DIR / f"{base_stem}__audio{audio_ext}"
     video_path = VIDEOS_DIR / f"{base_stem}.mp4"
 
-    _download_binary(image_url, image_path)
     _download_binary(audio_url, audio_path)
 
     try:
-        render_result = render_photo_reel(image_path, audio_path, video_path)
+        render_result = render_photo_reel(downloaded_image_paths, audio_path, video_path)
     except RenderError as exc:
         raise TikTokDownloadError(str(exc)) from exc
 
@@ -467,7 +470,8 @@ def _prepare_photo_media(metadata: dict, *, prepend_cover_intro: bool = False) -
             "title": metadata.get("title"),
             "source_media_kind": "photo_post",
             "audio_path": str(audio_path.resolve()),
-            "image_path": str(image_path.resolve()),
+            "image_path": str(downloaded_image_paths[0].resolve()),
+            "image_paths": [str(path.resolve()) for path in downloaded_image_paths],
             "audio_duration_seconds": render_result["audio_duration_seconds"],
             "rendered_from_photo": True,
             "cover_intro_applied": cover_intro_applied,

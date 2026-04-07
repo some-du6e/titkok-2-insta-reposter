@@ -176,6 +176,30 @@ class TikTokMediaPrepTestCase(unittest.TestCase):
         with self.assertRaises(TikTokDownloadError):
             prepare_tiktok_media("https://example.com/not-tiktok")
 
+    def test_extract_image_candidates_reads_slideshow_images_from_image_post_info(self):
+        metadata = {
+            "image_post_info": {
+                "images": [
+                    {"image_url": {"url_list": ["https://img.example/one.jpg"]}},
+                    {"image_url": {"url_list": ["https://img.example/two.jpg"]}},
+                ]
+            },
+            "thumbnails": [
+                {
+                    "url": "https://img.example/thumb.jpg",
+                    "width": 1080,
+                    "height": 1920,
+                }
+            ],
+        }
+
+        image_urls = _extract_image_candidates(metadata)
+
+        self.assertEqual(
+            image_urls,
+            ["https://img.example/one.jpg", "https://img.example/two.jpg"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
