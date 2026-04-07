@@ -51,13 +51,15 @@ def _should_loop_visual_input_as_stream(media_path: str | Path) -> bool:
         check=False,
     )
 
+    _video_extensions = {".gif", ".webp", ".mp4", ".mov", ".m4v", ".webm"}
+
     if result.returncode != 0:
-        return path.suffix.lower() in {".gif", ".webp"}
+        return path.suffix.lower() in _video_extensions
 
     try:
         payload = json.loads(result.stdout or "{}")
     except json.JSONDecodeError:
-        return path.suffix.lower() in {".gif", ".webp"}
+        return path.suffix.lower() in _video_extensions
 
     streams = payload.get("streams")
     if not isinstance(streams, list) or not streams:
