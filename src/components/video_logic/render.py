@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import subprocess
 from pathlib import Path
@@ -12,6 +13,7 @@ OUTPUT_HEIGHT = 1920
 FRAME_RATE = 30
 COVER_IMAGE_PATH = PROJECT_ROOT / "coverrrr.png"
 INTRO_DURATION_SECONDS = 0.1
+PHOTO_FRAME_DURATION_SECONDS = 5.0
 
 
 class RenderError(RuntimeError):
@@ -79,37 +81,60 @@ def _build_reel_video_filter(input_label: str, output_label: str) -> str:
 
 
 def render_photo_reel(
-    image_path: str | Path,
+    image_path: str | Path | list[str | Path],
     audio_path: str | Path,
     output_path: str | Path,
 ) -> dict:
     ffmpeg = _require_binary("ffmpeg")
-    image = Path(image_path)
+    if isinstance(image_path, (list, tuple)):
+        images = [Path(item) for item in image_path]
+    else:
+        images = [Path(image_path)]
     audio = Path(audio_path)
     output = Path(output_path)
 
-    if not image.exists():
+    if not images:
         raise RenderError("Photo post image is missing on disk")
+    for image in images:
+        if not image.exists():
+            raise RenderError("Photo post image is missing on disk")
     if not audio.exists():
         raise RenderError("Photo post audio is missing on disk")
 
     duration = get_media_duration(audio)
     output.parent.mkdir(parents=True, exist_ok=True)
     temp_output = output.with_name(f"{output.stem}.tmp{output.suffix}")
+    concat_manifest = output.with_name(f"{output.stem}.images.ffconcat")
     if temp_output.exists():
         temp_output.unlink()
+    if concat_manifest.exists():
+        concat_manifest.unlink()
+
+    sequence_duration = len(images) * PHOTO_FRAME_DURATION_SECONDS
+    repeat_count = max(1, math.ceil(duration / sequence_duration))
+    rendered_images = images * repeat_count
+
+    def _escape_manifest_path(path: Path) -> str:
+        return str(path.resolve()).replace("\\", "\\\\").replace("'", "\\'")
+
+    manifest_lines = ["ffconcat version 1.0"]
+    for image in rendered_images:
+        manifest_lines.append(f"file '{_escape_manifest_path(image)}'")
+        manifest_lines.append(f"duration {PHOTO_FRAME_DURATION_SECONDS:.3f}")
+    manifest_lines.append(f"file '{_escape_manifest_path(rendered_images[-1])}'")
+    concat_manifest.write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
 
     filter_graph = _build_cover_image_filter("0:v", "v")
 
     command = [
         ffmpeg,
         "-y",
-        "-loop",
-        "1",
-        "-framerate",
-        str(FRAME_RATE),
+        "-safe",
+        "0",
+        "-f",
+        "concat",
         "-i",
-        str(image),
+        str(concat_manifest),
         "-i",
         str(audio),
         "-t",
@@ -126,6 +151,8 @@ def render_photo_reel(
         "medium",
         "-pix_fmt",
         "yuv420p",
+        "-r",
+        str(FRAME_RATE),
         "-c:a",
         "aac",
         "-b:a",
@@ -146,6 +173,8 @@ def render_photo_reel(
         cwd=PROJECT_ROOT,
         check=False,
     )
+    if concat_manifest.exists():
+        concat_manifest.unlink()
     if result.returncode != 0 or not temp_output.exists():
         if temp_output.exists():
             temp_output.unlink()

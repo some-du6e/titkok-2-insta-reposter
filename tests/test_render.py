@@ -61,11 +61,47 @@ class RenderHelpersTestCase(unittest.TestCase):
 
             command = mock_run.call_args.args[0]
             self.assertEqual(command[0], "C:/bin/ffmpeg.exe")
-            self.assertIn("-loop", command)
+            self.assertIn("-f", command)
+            self.assertIn("concat", command)
             self.assertIn("-filter_complex", command)
             self.assertIn("7.250", command)
-            self.assertIn(str(image_path), command)
             self.assertIn(str(audio_path), command)
+            manifest_path = Path(command[command.index("-i") + 1])
+            self.assertEqual(manifest_path.suffix, ".ffconcat")
+
+    @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render.get_media_duration", return_value=12.5)
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_render_photo_reel_cycles_multiple_images_until_audio_ends(
+        self,
+        mock_run,
+        _mock_duration,
+        _mock_which,
+    ):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            image_a = Path(temp_dir) / "photo-a.jpg"
+            image_b = Path(temp_dir) / "photo-b.jpg"
+            audio_path = Path(temp_dir) / "audio.m4a"
+            output_path = Path(temp_dir) / "rendered.mp4"
+            image_a.write_bytes(b"image")
+            image_b.write_bytes(b"image")
+            audio_path.write_bytes(b"audio")
+            captured_manifest = {"text": ""}
+
+            def _run_side_effect(command, **_kwargs):
+                manifest_path = Path(command[command.index("-i") + 1])
+                captured_manifest["text"] = manifest_path.read_text(encoding="utf-8")
+                Path(command[-1]).write_bytes(b"video")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            mock_run.side_effect = _run_side_effect
+
+            render_photo_reel([image_a, image_b], audio_path, output_path)
+
+            manifest_text = captured_manifest["text"]
+            self.assertGreaterEqual(manifest_text.count("duration 5.000"), 4)
+            self.assertIn(str(image_a.resolve()), manifest_text)
+            self.assertIn(str(image_b.resolve()), manifest_text)
 
     @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
     @patch("src.components.video_logic.render.get_media_duration", return_value=3.0)
