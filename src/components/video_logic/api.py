@@ -9,7 +9,7 @@ INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET")
 INSTAGRAM_ACCESS_TOKEN = os.getenv("INSTAGRAM_ACCESS_TOKEN")
 INSTAGRAM_ACCOUNT_ID = os.getenv("INSTAGRAM_ACCOUNT_ID")
 
-GRAPH_API_URL = "https://graph.instagram.com/v25.0"
+GRAPH_API_URL = os.getenv("INSTAGRAM_GRAPH_API_URL", "https://graph.instagram.com/v25.0")
 RUPLOAD_URL = "https://rupload.facebook.com/ig-api-upload"
 
 
@@ -43,7 +43,14 @@ def get_upload_headers():
     }
 
 
-def create_media_container(video_url, caption="", media_type="REELS"):
+def create_media_container(
+    video_url,
+    caption="",
+    media_type="REELS",
+    cover_url=None,
+    thumb_offset=None,
+    share_to_feed=None,
+):
     """
     Create a media container for the video.
     
@@ -63,6 +70,14 @@ def create_media_container(video_url, caption="", media_type="REELS"):
         "caption": caption,
         "access_token": INSTAGRAM_ACCESS_TOKEN,
     }
+
+    if cover_url:
+        payload["cover_url"] = cover_url
+    elif thumb_offset is not None:
+        payload["thumb_offset"] = thumb_offset
+
+    if share_to_feed is not None:
+        payload["share_to_feed"] = bool(share_to_feed)
     
     response = requests.post(endpoint, json=payload, headers=get_headers())
     _raise_with_response_context(response, "Instagram media container creation")
