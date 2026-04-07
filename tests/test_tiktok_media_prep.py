@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from src.components.video_logic.tiktok import TikTokDownloadError, _build_base_stem, prepare_tiktok_media
+from src.components.video_logic.tiktok import (
+    TikTokDownloadError,
+    _build_base_stem,
+    _extract_image_candidates,
+    prepare_tiktok_media,
+)
 
 
 class TikTokMediaPrepTestCase(unittest.TestCase):
@@ -147,6 +152,25 @@ class TikTokMediaPrepTestCase(unittest.TestCase):
         stem = _build_base_stem({"uploader_id": None, "id": None, "title": None})
 
         self.assertEqual(stem, "unknown__unknown")
+
+    def test_extract_image_candidates_supports_live_image_urls(self):
+        metadata = {
+            "image_post_info": {
+                "images": [
+                    {
+                        "playAddr": {
+                            "urlList": [
+                                "https://cdn.example/live-image.mp4",
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+
+        candidates = _extract_image_candidates(metadata)
+
+        self.assertEqual(candidates[0], "https://cdn.example/live-image.mp4")
 
     def test_invalid_url_raises_validation_error(self):
         with self.assertRaises(TikTokDownloadError):
