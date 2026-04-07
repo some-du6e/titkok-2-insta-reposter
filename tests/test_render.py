@@ -32,12 +32,14 @@ class RenderHelpersTestCase(unittest.TestCase):
         self.assertIn("audio.m4a", command)
 
     @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render._should_loop_visual_input_as_stream", return_value=False)
     @patch("src.components.video_logic.render.get_media_duration", return_value=7.25)
     @patch("src.components.video_logic.render.subprocess.run")
     def test_render_photo_reel_builds_expected_ffmpeg_command(
         self,
         mock_run,
         _mock_duration,
+        _mock_loop_mode,
         _mock_which,
     ):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -68,12 +70,44 @@ class RenderHelpersTestCase(unittest.TestCase):
             self.assertIn(str(audio_path), command)
 
     @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render._should_loop_visual_input_as_stream", return_value=True)
+    @patch("src.components.video_logic.render.get_media_duration", return_value=4.5)
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_render_photo_reel_uses_stream_loop_for_live_images(
+        self,
+        mock_run,
+        _mock_duration,
+        _mock_loop_mode,
+        _mock_which,
+    ):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "photo.webp"
+            audio_path = Path(temp_dir) / "audio.m4a"
+            output_path = Path(temp_dir) / "rendered.mp4"
+            image_path.write_bytes(b"image")
+            audio_path.write_bytes(b"audio")
+
+            def _run_side_effect(command, **_kwargs):
+                Path(command[-1]).write_bytes(b"video")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            mock_run.side_effect = _run_side_effect
+
+            render_photo_reel(image_path, audio_path, output_path)
+
+            command = mock_run.call_args.args[0]
+            self.assertIn("-stream_loop", command)
+            self.assertNotIn("-framerate", command)
+
+    @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render._should_loop_visual_input_as_stream", return_value=False)
     @patch("src.components.video_logic.render.get_media_duration", return_value=3.0)
     @patch("src.components.video_logic.render.subprocess.run")
     def test_render_photo_reel_raises_on_ffmpeg_failure(
         self,
         mock_run,
         _mock_duration,
+        _mock_loop_mode,
         _mock_which,
     ):
         with tempfile.TemporaryDirectory() as temp_dir:

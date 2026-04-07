@@ -25,6 +25,61 @@ def _require_binary(name: str) -> str:
     return path
 
 
+def _should_loop_visual_input_as_stream(media_path: str | Path) -> bool:
+    """Return True for animated/live image inputs that should use stream looping."""
+    path = Path(media_path)
+    ffprobe = _require_binary("ffprobe")
+
+    command = [
+        ffprobe,
+        "-v",
+        "error",
+        "-count_packets",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=nb_read_packets,duration",
+        "-of",
+        "json",
+        str(path),
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        return path.suffix.lower() in {".gif", ".webp"}
+
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return path.suffix.lower() in {".gif", ".webp"}
+
+    streams = payload.get("streams")
+    if not isinstance(streams, list) or not streams:
+        return False
+
+    stream = streams[0] if isinstance(streams[0], dict) else {}
+    raw_packets = stream.get("nb_read_packets")
+    try:
+        packet_count = int(raw_packets)
+    except (TypeError, ValueError):
+        packet_count = 0
+    if packet_count > 1:
+        return True
+
+    raw_duration = stream.get("duration")
+    try:
+        duration = float(raw_duration)
+    except (TypeError, ValueError):
+        duration = 0.0
+    return duration > 0.2
+
+
 def get_media_duration(media_path: str | Path) -> float:
     ffprobe = _require_binary("ffprobe")
     path = Path(media_path)
@@ -101,44 +156,52 @@ def render_photo_reel(
 
     filter_graph = _build_cover_image_filter("0:v", "v")
 
-    command = [
-        ffmpeg,
-        "-y",
-        "-loop",
-        "1",
-        "-framerate",
-        str(FRAME_RATE),
-        "-i",
-        str(image),
-        "-i",
-        str(audio),
-        "-t",
-        f"{duration:.3f}",
-        "-filter_complex",
-        filter_graph,
-        "-map",
-        "[v]",
-        "-map",
-        "1:a:0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "medium",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "-movflags",
-        "+faststart",
-        "-shortest",
-        str(temp_output),
-    ]
+    command = [ffmpeg, "-y"]
+    if _should_loop_visual_input_as_stream(image):
+        command.extend(["-stream_loop", "-1", "-i", str(image)])
+    else:
+        command.extend(
+            [
+                "-loop",
+                "1",
+                "-framerate",
+                str(FRAME_RATE),
+                "-i",
+                str(image),
+            ]
+        )
+    command.extend(
+        [
+            "-i",
+            str(audio),
+            "-t",
+            f"{duration:.3f}",
+            "-filter_complex",
+            filter_graph,
+            "-map",
+            "[v]",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ar",
+            "48000",
+            "-ac",
+            "2",
+            "-movflags",
+            "+faststart",
+            "-shortest",
+            str(temp_output),
+        ]
+    )
     result = subprocess.run(
         command,
         capture_output=True,
