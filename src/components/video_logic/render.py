@@ -27,6 +27,63 @@ def _require_binary(name: str) -> str:
     return path
 
 
+def _should_loop_visual_input_as_stream(media_path: str | Path) -> bool:
+    """Return True for animated/live image inputs that should use stream looping."""
+    path = Path(media_path)
+    ffprobe = _require_binary("ffprobe")
+
+    command = [
+        ffprobe,
+        "-v",
+        "error",
+        "-count_packets",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=nb_read_packets,duration",
+        "-of",
+        "json",
+        str(path),
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+
+    _video_extensions = {".gif", ".webp", ".mp4", ".mov", ".m4v", ".webm"}
+
+    if result.returncode != 0:
+        return path.suffix.lower() in _video_extensions
+
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return path.suffix.lower() in _video_extensions
+
+    streams = payload.get("streams")
+    if not isinstance(streams, list) or not streams:
+        return False
+
+    stream = streams[0] if isinstance(streams[0], dict) else {}
+    raw_packets = stream.get("nb_read_packets")
+    try:
+        packet_count = int(raw_packets)
+    except (TypeError, ValueError):
+        packet_count = 0
+    if packet_count > 1:
+        return True
+
+    raw_duration = stream.get("duration")
+    try:
+        duration = float(raw_duration)
+    except (TypeError, ValueError):
+        duration = 0.0
+    return duration > 0.2
+
+
 def get_media_duration(media_path: str | Path) -> float:
     ffprobe = _require_binary("ffprobe")
     path = Path(media_path)
@@ -104,68 +161,74 @@ def render_photo_reel(
     duration = get_media_duration(audio)
     output.parent.mkdir(parents=True, exist_ok=True)
     temp_output = output.with_name(f"{output.stem}.tmp{output.suffix}")
-    concat_manifest = output.with_name(f"{output.stem}.images.ffconcat")
     if temp_output.exists():
         temp_output.unlink()
+    concat_manifest = output.with_name(f"{output.stem}.images.ffconcat")
     if concat_manifest.exists():
         concat_manifest.unlink()
 
-    sequence_duration = len(images) * PHOTO_FRAME_DURATION_SECONDS
-    repeat_count = max(1, math.ceil(duration / sequence_duration))
-    rendered_images = images * repeat_count
-
-    def _escape_manifest_path(path: Path) -> str:
-        return str(path.resolve()).replace("\\", "\\\\").replace("'", "\\'")
-
-    manifest_lines = ["ffconcat version 1.0"]
-    for image in rendered_images:
-        manifest_lines.append(f"file '{_escape_manifest_path(image)}'")
-        manifest_lines.append(f"duration {PHOTO_FRAME_DURATION_SECONDS:.3f}")
-    manifest_lines.append(f"file '{_escape_manifest_path(rendered_images[-1])}'")
-    concat_manifest.write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
-
     filter_graph = _build_cover_image_filter("0:v", "v")
+    command = [ffmpeg, "-y"]
+    if len(images) == 1 and _should_loop_visual_input_as_stream(images[0]):
+        command.extend(["-stream_loop", "-1", "-i", str(images[0])])
+    else:
+        sequence_duration = len(images) * PHOTO_FRAME_DURATION_SECONDS
+        repeat_count = max(1, math.ceil(duration / sequence_duration))
+        rendered_images = images * repeat_count
 
-    command = [
-        ffmpeg,
-        "-y",
-        "-safe",
-        "0",
-        "-f",
-        "concat",
-        "-i",
-        str(concat_manifest),
-        "-i",
-        str(audio),
-        "-t",
-        f"{duration:.3f}",
-        "-filter_complex",
-        filter_graph,
-        "-map",
-        "[v]",
-        "-map",
-        "1:a:0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "medium",
-        "-pix_fmt",
-        "yuv420p",
-        "-r",
-        str(FRAME_RATE),
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "-movflags",
-        "+faststart",
-        "-shortest",
-        str(temp_output),
-    ]
+        def _escape_manifest_path(path: Path) -> str:
+            return str(path.resolve()).replace("\\", "\\\\").replace("'", "\\'")
+
+        manifest_lines = ["ffconcat version 1.0"]
+        for image in rendered_images:
+            manifest_lines.append(f"file '{_escape_manifest_path(image)}'")
+            manifest_lines.append(f"duration {PHOTO_FRAME_DURATION_SECONDS:.3f}")
+        manifest_lines.append(f"file '{_escape_manifest_path(rendered_images[-1])}'")
+        concat_manifest.write_text("\n".join(manifest_lines) + "\n", encoding="utf-8")
+        command.extend(
+            [
+                "-safe",
+                "0",
+                "-f",
+                "concat",
+                "-i",
+                str(concat_manifest),
+            ]
+        )
+    command.extend(
+        [
+            "-i",
+            str(audio),
+            "-t",
+            f"{duration:.3f}",
+            "-filter_complex",
+            filter_graph,
+            "-map",
+            "[v]",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            str(FRAME_RATE),
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ar",
+            "48000",
+            "-ac",
+            "2",
+            "-movflags",
+            "+faststart",
+            "-shortest",
+            str(temp_output),
+        ]
+    )
     result = subprocess.run(
         command,
         capture_output=True,

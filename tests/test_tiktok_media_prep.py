@@ -153,6 +153,25 @@ class TikTokMediaPrepTestCase(unittest.TestCase):
 
         self.assertEqual(stem, "unknown__unknown")
 
+    def test_extract_image_candidates_supports_live_image_urls(self):
+        metadata = {
+            "image_post_info": {
+                "images": [
+                    {
+                        "playAddr": {
+                            "urlList": [
+                                "https://cdn.example/live-image.mp4",
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+
+        candidates = _extract_image_candidates(metadata)
+
+        self.assertEqual(candidates[0], "https://cdn.example/live-image.mp4")
+
     def test_invalid_url_raises_validation_error(self):
         with self.assertRaises(TikTokDownloadError):
             prepare_tiktok_media("https://example.com/not-tiktok")

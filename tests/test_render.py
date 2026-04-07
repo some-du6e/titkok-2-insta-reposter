@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from src.components.video_logic.render import (
     RenderError,
+    _should_loop_visual_input_as_stream,
     get_media_duration,
     prepend_cover_intro_frame,
     render_photo_reel,
@@ -31,13 +32,94 @@ class RenderHelpersTestCase(unittest.TestCase):
         self.assertIn("ffprobe", command[0])
         self.assertIn("audio.m4a", command)
 
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_animated_by_packet_count(self, mock_run, _mock_which):
+        """Inputs with more than one video packet are classified as stream-loop."""
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout='{"streams":[{"nb_read_packets":"30","duration":"1.0"}]}',
+            stderr="",
+        )
+        self.assertTrue(_should_loop_visual_input_as_stream("animation.gif"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_animated_by_duration(self, mock_run, _mock_which):
+        """Single-packet inputs whose duration exceeds the threshold are stream-loop."""
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout='{"streams":[{"nb_read_packets":"1","duration":"0.5"}]}',
+            stderr="",
+        )
+        self.assertTrue(_should_loop_visual_input_as_stream("photo.jpg"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_static_image(self, mock_run, _mock_which):
+        """A truly static image (1 packet, tiny duration) is not stream-looped."""
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout='{"streams":[{"nb_read_packets":"1","duration":"0.0"}]}',
+            stderr="",
+        )
+        self.assertFalse(_should_loop_visual_input_as_stream("photo.jpg"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_empty_streams(self, mock_run, _mock_which):
+        """An empty streams list results in False (no stream-loop)."""
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout='{"streams":[]}',
+            stderr="",
+        )
+        self.assertFalse(_should_loop_visual_input_as_stream("photo.jpg"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_probe_fails_video_extension(self, mock_run, _mock_which):
+        """When ffprobe fails, video extensions (.mp4, .webp) default to stream-loop."""
+        mock_run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="error")
+        self.assertTrue(_should_loop_visual_input_as_stream("live.mp4"))
+        self.assertTrue(_should_loop_visual_input_as_stream("live.webp"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_probe_fails_static_extension(self, mock_run, _mock_which):
+        """When ffprobe fails, non-animated extensions (.jpg, .png) default to False."""
+        mock_run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="error")
+        self.assertFalse(_should_loop_visual_input_as_stream("photo.jpg"))
+        self.assertFalse(_should_loop_visual_input_as_stream("photo.png"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_bad_json_fallback(self, mock_run, _mock_which):
+        """Unparseable ffprobe output falls back to extension-based detection."""
+        mock_run.return_value = SimpleNamespace(returncode=0, stdout="not-json", stderr="")
+        self.assertTrue(_should_loop_visual_input_as_stream("clip.webm"))
+        self.assertFalse(_should_loop_visual_input_as_stream("photo.png"))
+
+    @patch("src.components.video_logic.render.shutil.which", return_value="C:/bin/ffprobe.exe")
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_should_loop_visual_missing_fields_treated_as_zero(self, mock_run, _mock_which):
+        """Missing nb_read_packets/duration are treated as 0 and checked against thresholds."""
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout='{"streams":[{}]}',
+            stderr="",
+        )
+        self.assertFalse(_should_loop_visual_input_as_stream("photo.jpg"))
+
     @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render._should_loop_visual_input_as_stream", return_value=False)
     @patch("src.components.video_logic.render.get_media_duration", return_value=7.25)
     @patch("src.components.video_logic.render.subprocess.run")
     def test_render_photo_reel_builds_expected_ffmpeg_command(
         self,
         mock_run,
         _mock_duration,
+        _mock_loop_mode,
         _mock_which,
     ):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -104,12 +186,44 @@ class RenderHelpersTestCase(unittest.TestCase):
             self.assertIn(str(image_b.resolve()), manifest_text)
 
     @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render._should_loop_visual_input_as_stream", return_value=True)
+    @patch("src.components.video_logic.render.get_media_duration", return_value=4.5)
+    @patch("src.components.video_logic.render.subprocess.run")
+    def test_render_photo_reel_uses_stream_loop_for_live_images(
+        self,
+        mock_run,
+        _mock_duration,
+        _mock_loop_mode,
+        _mock_which,
+    ):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            image_path = Path(temp_dir) / "photo.webp"
+            audio_path = Path(temp_dir) / "audio.m4a"
+            output_path = Path(temp_dir) / "rendered.mp4"
+            image_path.write_bytes(b"image")
+            audio_path.write_bytes(b"audio")
+
+            def _run_side_effect(command, **_kwargs):
+                Path(command[-1]).write_bytes(b"video")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            mock_run.side_effect = _run_side_effect
+
+            render_photo_reel(image_path, audio_path, output_path)
+
+            command = mock_run.call_args.args[0]
+            self.assertIn("-stream_loop", command)
+            self.assertNotIn("-framerate", command)
+
+    @patch("src.components.video_logic.render.shutil.which", side_effect=lambda name: f"C:/bin/{name}.exe")
+    @patch("src.components.video_logic.render._should_loop_visual_input_as_stream", return_value=False)
     @patch("src.components.video_logic.render.get_media_duration", return_value=3.0)
     @patch("src.components.video_logic.render.subprocess.run")
     def test_render_photo_reel_raises_on_ffmpeg_failure(
         self,
         mock_run,
         _mock_duration,
+        _mock_loop_mode,
         _mock_which,
     ):
         with tempfile.TemporaryDirectory() as temp_dir:

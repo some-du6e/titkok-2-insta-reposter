@@ -201,43 +201,32 @@ def _is_audio_like_format(fmt: dict) -> bool:
 def _extract_image_candidates(metadata: dict) -> list[str]:
     candidates: list[str] = []
 
+    def _extend_from_container(value: object) -> None:
+        if isinstance(value, str) and value:
+            candidates.append(value)
+            return
+        if isinstance(value, list):
+            for item in value:
+                _extend_from_container(item)
+            return
+        if not isinstance(value, dict):
+            return
+
+        for key in ("url", "image_url", "display_image_url", "video_url"):
+            _extend_from_container(value.get(key))
+        _extend_from_container(value.get("url_list"))
+        _extend_from_container(value.get("urlList"))
+        _extend_from_container(value.get("play_addr"))
+        _extend_from_container(value.get("playAddr"))
+        _extend_from_container(value.get("images"))
+
     for key in ("images", "image_post", "image_post_info"):
         raw = metadata.get(key)
         if isinstance(raw, list):
             for item in raw:
-                if isinstance(item, str) and item:
-                    candidates.append(item)
-                elif isinstance(item, dict):
-                    for nested_key in ("url", "image_url", "display_image_url"):
-                        value = item.get(nested_key)
-                        if isinstance(value, str) and value:
-                            candidates.append(value)
-                            break
-                    else:
-                        image_url_list = item.get("url_list")
-                        if isinstance(image_url_list, list):
-                            candidates.extend(
-                                value for value in image_url_list if isinstance(value, str) and value
-                            )
+                _extend_from_container(item)
         elif isinstance(raw, dict):
-            nested_images = raw.get("images")
-            if isinstance(nested_images, list):
-                for item in nested_images:
-                    if isinstance(item, dict):
-                        image_url_list = item.get("url_list")
-                        if isinstance(image_url_list, list):
-                            candidates.extend(
-                                value for value in image_url_list if isinstance(value, str) and value
-                            )
-                        image_url = item.get("image_url")
-                        if isinstance(image_url, dict):
-                            image_url_list = image_url.get("url_list")
-                            if isinstance(image_url_list, list):
-                                candidates.extend(
-                                    value
-                                    for value in image_url_list
-                                    if isinstance(value, str) and value
-                                )
+            _extend_from_container(raw)
 
     thumbnails = metadata.get("thumbnails")
     if isinstance(thumbnails, list) and not candidates:
