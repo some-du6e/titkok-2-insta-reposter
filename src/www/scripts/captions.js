@@ -2,6 +2,7 @@ const captionCloudList = document.querySelector("#caption-cloud-list");
 const addCaptionCloudButton = document.querySelector("#add-caption-cloud");
 const captionCloudTemplate = document.querySelector("#caption-cloud-template");
 const captionCloudTotal = document.querySelector("#caption-cloud-total");
+const captionFilledTotal = document.querySelector("#caption-filled-total");
 const captionCharacterTotal = document.querySelector("#caption-character-total");
 const captionSaveStatus = document.querySelector("#caption-save-status");
 
@@ -58,13 +59,19 @@ function updateCloudState(cloud, index) {
 function updateWorkspaceState() {
   const clouds = getCaptionClouds();
   let totalCharacters = 0;
+  let filledClouds = 0;
 
   clouds.forEach((cloud, index) => {
     updateCloudState(cloud, index);
-    totalCharacters += cloud.querySelector(".caption-cloud__input").value.length;
+    const value = cloud.querySelector(".caption-cloud__input").value;
+    totalCharacters += value.length;
+    if (value.trim()) {
+      filledClouds += 1;
+    }
   });
 
   captionCloudTotal.textContent = String(clouds.length);
+  captionFilledTotal.textContent = String(filledClouds);
   captionCharacterTotal.textContent = String(totalCharacters);
 }
 

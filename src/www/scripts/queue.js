@@ -1,8 +1,13 @@
 const queueGrid = document.querySelector("#queue-grid");
 const queueCardTemplate = document.querySelector("#queue-card-template");
 const queueReadyCount = document.querySelector("#queue-ready-count");
+const queueSummaryCopy = document.querySelector("#queue-summary-copy");
 const queueEmptyState = document.querySelector("#queue-empty-state");
 const queueFeedback = document.querySelector("#queue-feedback");
+const queueStatReady = document.querySelector("#queue-stat-ready");
+const queueStatPublishing = document.querySelector("#queue-stat-publishing");
+const queueStatFailed = document.querySelector("#queue-stat-failed");
+const queueStatPublished = document.querySelector("#queue-stat-published");
 const autoPostEnabledInput = document.querySelector("#auto-post-enabled");
 const autoPostIntervalInput = document.querySelector("#auto-post-interval");
 const prependCoverIntroEnabledInput = document.querySelector("#prepend-cover-intro-enabled");
@@ -171,7 +176,20 @@ function renderQueue(items) {
     (item) => item.status !== "published" && !hiddenPublishedIds.has(item.id),
   );
   const readyItems = visibleItems.filter((item) => item.status === "queued");
+  const publishingItems = visibleItems.filter((item) => item.status === "publishing");
+  const failedItems = visibleItems.filter((item) => item.status === "failed");
+  const publishedItems = items.filter((item) => item.status === "published");
+
   queueReadyCount.textContent = `${readyItems.length} post${readyItems.length === 1 ? "" : "s"} ready`;
+  queueStatReady.textContent = String(readyItems.length);
+  queueStatPublishing.textContent = String(publishingItems.length);
+  queueStatFailed.textContent = String(failedItems.length);
+  queueStatPublished.textContent = String(publishedItems.length);
+  queueSummaryCopy.textContent = failedItems.length
+    ? `${failedItems.length} failed item${failedItems.length === 1 ? "" : "s"} need review before the next clean run.`
+    : readyItems.length
+      ? "Queue is primed for the next manual or scheduled publish."
+      : "No ready items in the queue right now.";
 
   queueEmptyState.hidden = visibleItems.length > 0;
   queueGrid.replaceChildren();

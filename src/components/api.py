@@ -1,4 +1,6 @@
 import os
+from collections import Counter
+from datetime import datetime, timezone
 
 import flask
 from dotenv import load_dotenv
@@ -40,6 +42,103 @@ app = flask.Flask(__name__)
 
 def _json_error(message: str, status_code: int):
     return flask.jsonify({"error": message}), status_code
+
+
+def _parse_iso_datetime(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+
+    return parsed.astimezone(timezone.utc)
+
+
+def _get_dashboard_summary():
+    state = get_queue_state()
+    items = state.get("items", [])
+    settings = state.get("settings", {})
+    captions = captions_store.load_captions()
+    public_collection = get_public_collection_status()
+
+    status_counts = Counter(
+        item.get("status") or "unknown"
+        for item in items
+        if isinstance(item, dict)
+    )
+    captions_with_text = [caption for caption in captions if isinstance(caption, str) and caption.strip()]
+    next_item = min(
+        (
+            item for item in items
+            if isinstance(item, dict) and item.get("status") == "queued"
+        ),
+        key=lambda item: item.get("created_at") or "",
+        default=None,
+    )
+
+    recent_activity = sorted(
+        (item for item in items if isinstance(item, dict)),
+        key=lambda item: item.get("updated_at") or item.get("created_at") or "",
+        reverse=True,
+    )[:6]
+
+    def serialize_activity(item):
+        title = (
+            item.get("download", {}).get("title")
+            if isinstance(item.get("download"), dict)
+            else None
+        ) or item.get("video_filename") or "Queued post"
+
+        return {
+            "id": item.get("id"),
+            "title": title,
+            "status": item.get("status") or "unknown",
+            "updated_at": item.get("updated_at") or item.get("created_at"),
+            "source_url": item.get("source_url"),
+            "last_error": item.get("last_error"),
+        }
+
+    published_items = [
+        item for item in items
+        if isinstance(item, dict) and item.get("status") == "published"
+    ]
+    latest_published = max(
+        published_items,
+        key=lambda item: item.get("published_at") or "",
+        default=None,
+    )
+
+    return {
+        "queue": {
+            "total": len(items),
+            "queued": status_counts.get("queued", 0),
+            "publishing": status_counts.get("publishing", 0),
+            "failed": status_counts.get("failed", 0),
+            "published": status_counts.get("published", 0),
+            "next_item": serialize_activity(next_item) if next_item else None,
+            "latest_published": serialize_activity(latest_published) if latest_published else None,
+        },
+        "automation": {
+            "enabled": bool(settings.get("auto_post_enabled")),
+            "interval_minutes": settings.get("auto_post_interval_minutes"),
+            "next_run_at": settings.get("next_auto_post_at"),
+            "last_attempt_at": settings.get("last_auto_post_attempt_at"),
+            "last_result": settings.get("last_auto_post_result"),
+            "prepend_cover_intro_enabled": bool(settings.get("prependCoverIntroEnabled")),
+        },
+        "captions": {
+            "total_clouds": len(captions),
+            "filled_clouds": len(captions_with_text),
+            "total_characters": sum(len(caption) for caption in captions if isinstance(caption, str)),
+        },
+        "public_collection": public_collection,
+        "activity": [serialize_activity(item) for item in recent_activity],
+    }
 
 
 # serve www (prob gonna replaced with react)
@@ -127,6 +226,14 @@ def get_queue():
     try:
         state = get_queue_state()
         return flask.jsonify({"items": state["items"], "settings": state["settings"]})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@app.route("/api/dashboard", methods=["GET"])
+def get_dashboard():
+    try:
+        return flask.jsonify(_get_dashboard_summary())
     except Exception as e:
         return _json_error(str(e), 500)
 

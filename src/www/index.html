@@ -3,157 +3,219 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Update test</title>
+  <title>TT2IG Overview</title>
+  <meta
+    name="description"
+    content="Operational overview for TT2IG queue health, automation cadence, caption inventory, and collection monitor status."
+  />
   <link rel="stylesheet" href="./styles/shared.css" />
   <link rel="stylesheet" href="./styles/dashboard.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <h1 class="brand">TT 2 IG</h1>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-      <nav class="nav-strip" aria-label="Primary">
-        <a class="nav-button" href="./index.html" aria-current="page" aria-label="Dashboard">Dashboard</a>
-        <a class="nav-button" href="./queue.html" aria-label="Queue">Queue</a>
-        <a class="nav-button" href="./captions.html" aria-label="Captions">Captions</a>
-      </nav>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand-lockup" href="./index.html" aria-label="TT2IG overview">
+          <span class="brand-lockup__mark">TT2IG</span>
+          <span class="brand-lockup__text">
+            <strong>Operator console</strong>
+            <span>Queue, caption, and ingestion control room</span>
+          </span>
+        </a>
+
+        <nav class="nav-strip" aria-label="Primary">
+          <a class="nav-button" href="./index.html" aria-current="page">Overview</a>
+          <a class="nav-button" href="./queue.html">Queue</a>
+          <a class="nav-button" href="./captions.html">Captions</a>
+        </nav>
+      </div>
     </header>
 
-    <main class="content dashboard-content">
-      <section class="hero dashboard-hero" aria-label="Dashboard summary">
-        <div class="hero-copy">
-          <h2>Dashboard</h2>
-          <p>Queue status, caption work, and today&apos;s posts.</p>
+    <main id="main-content" class="page-shell page-shell--dashboard">
+      <section class="page-hero page-hero--overview">
+        <div class="page-hero__intro">
+          <p class="eyebrow">System posture</p>
+          <h1>Move faster without losing the thread.</h1>
+          <p class="page-hero__body">
+            This overview pulls live queue, caption, automation, and collection state so the next action is obvious.
+          </p>
         </div>
 
-        <div class="hero-panel" aria-label="Publishing health">
-          <div class="hero-panel__metric">
-            <strong>86%</strong>
-            <span>ready</span>
-          </div>
-          <p>Two items still need caption cleanup.</p>
+        <div class="hero-callout" aria-live="polite">
+          <p class="hero-callout__label">Immediate focus</p>
+          <strong id="overview-focus-title">Loading overview...</strong>
+          <p id="overview-focus-copy">Pulling live queue health and automation status.</p>
         </div>
       </section>
 
-      <section class="dashboard-grid" aria-label="Dashboard overview">
-        <section class="stack">
-          <div class="overview-band">
-            <article class="metric-card metric-card--bright">
-              <span class="metric-label">Queued now</span>
-              <strong>6 videos</strong>
-              <p>Ready for handoff into the posting queue.</p>
-            </article>
+      <p id="dashboard-feedback" class="feedback-banner" hidden></p>
 
-            <article class="metric-card">
-              <span class="metric-label">Needs caption work</span>
-              <strong>2 drafts</strong>
-              <p>Hooks are cut, but copy still needs a final pass.</p>
-            </article>
+      <section class="summary-strip" aria-label="Overview metrics">
+        <article class="summary-card summary-card--accent">
+          <span class="summary-card__label">Ready to publish</span>
+          <strong id="metric-queued">0</strong>
+          <p id="metric-queued-copy">Waiting for live data.</p>
+        </article>
 
-            <article class="metric-card">
-              <span class="metric-label">Posted today</span>
-              <strong>4 reels</strong>
-              <p>Performance check is due in about 3 hours.</p>
-            </article>
-          </div>
+        <article class="summary-card">
+          <span class="summary-card__label">Publish failures</span>
+          <strong id="metric-failed">0</strong>
+          <p id="metric-failed-copy">No recent errors recorded.</p>
+        </article>
 
-          <article class="panel panel--spotlight">
+        <article class="summary-card">
+          <span class="summary-card__label">Caption inventory</span>
+          <strong id="metric-captions">0</strong>
+          <p id="metric-captions-copy">Caption workspace is loading.</p>
+        </article>
+
+        <article class="summary-card">
+          <span class="summary-card__label">Collection monitor</span>
+          <strong id="metric-monitor">Idle</strong>
+          <p id="metric-monitor-copy">Status will appear once data loads.</p>
+        </article>
+      </section>
+
+      <section class="dashboard-layout" aria-label="Operational overview">
+        <section class="dashboard-column">
+          <article class="panel panel--priority">
             <div class="panel-heading">
               <div>
-                <span class="eyebrow">Next publish</span>
-                <h3>Trend remix</h3>
+                <p class="eyebrow">Next in line</p>
+                <h2>Publish queue</h2>
               </div>
-              <div class="status-pill"><span class="pill-dot"></span> Scheduled 3:30 PM</div>
+              <span id="priority-status" class="status-badge">Loading</span>
             </div>
 
-            <div class="spotlight-layout">
-              <div class="spotlight-phone" aria-hidden="true">
-                <div class="phone-top"></div>
-                <div class="video-frame">
-                  <div class="video-poster">
-                    <div class="poster-art">
-                      <div class="poster-label">
-                        <strong>Trend remix</strong>
-                        <span>Caption synced and cover ready</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <div class="priority-grid">
+              <div class="priority-block">
+                <span class="priority-block__label">Next queued item</span>
+                <strong id="next-item-title">Waiting for queue data</strong>
+                <p id="next-item-meta">No queue item loaded yet.</p>
               </div>
 
-              <div class="spotlight-copy">
-                <p>Next reel is scheduled. Caption review is the main remaining task.</p>
-
-                <div class="checklist" aria-label="Publish checklist">
-                  <div class="checklist-item is-done">Video trimmed to vertical safe area</div>
-                  <div class="checklist-item is-done">Instagram cover frame selected</div>
-                  <div class="checklist-item">Hashtags need final review</div>
+              <dl class="definition-grid">
+                <div>
+                  <dt>Next scheduled run</dt>
+                  <dd id="auto-next-run">Unknown</dd>
                 </div>
+                <div>
+                  <dt>Last attempt</dt>
+                  <dd id="auto-last-attempt">Unknown</dd>
+                </div>
+                <div>
+                  <dt>Last result</dt>
+                  <dd id="auto-last-result">Unknown</dd>
+                </div>
+                <div>
+                  <dt>Cover intro</dt>
+                  <dd id="auto-cover-intro">Unknown</dd>
+                </div>
+              </dl>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Recent movement</p>
+                <h2>Activity feed</h2>
               </div>
+            </div>
+
+            <div id="activity-list" class="activity-list" aria-live="polite">
+              <p class="empty-note">Loading activity...</p>
             </div>
           </article>
         </section>
 
-        <aside class="stack stack--rail">
+        <aside class="dashboard-rail">
           <article class="panel">
             <div class="panel-heading">
               <div>
-                <span class="eyebrow">Quick actions</span>
-                <h3>Pipeline shortcuts</h3>
+                <p class="eyebrow">Automation</p>
+                <h2>Scheduler</h2>
               </div>
             </div>
 
-            <div class="action-list">
-              <a class="action-card" href="./queue.html">
-                <strong>Open queue</strong>
-                <span>Review upcoming reels in device view.</span>
-              </a>
-              <a class="action-card" href="./captions.html">
-                <strong>Draft captions</strong>
-                <span>Finish copy for the two waiting clips.</span>
-              </a>
-              <a class="action-card" href="./queue.html">
-                <strong>Check posted batch</strong>
-                <span>Audit how today&apos;s reels are performing.</span>
-              </a>
-            </div>
+            <dl class="definition-grid definition-grid--stacked">
+              <div>
+                <dt>Mode</dt>
+                <dd id="automation-mode">Unknown</dd>
+              </div>
+              <div>
+                <dt>Cadence</dt>
+                <dd id="automation-cadence">Unknown</dd>
+              </div>
+              <div>
+                <dt>Last result</dt>
+                <dd id="automation-last-result">Unknown</dd>
+              </div>
+            </dl>
           </article>
 
           <article class="panel">
             <div class="panel-heading">
               <div>
-                <span class="eyebrow">Recent activity</span>
-                <h3>Today&apos;s timeline</h3>
+                <p class="eyebrow">Captions</p>
+                <h2>Draft workspace</h2>
               </div>
             </div>
 
-            <div class="timeline">
-              <div class="timeline-item">
-                <span class="timeline-time">12:10</span>
-                <div>
-                  <strong>Story cutdown exported</strong>
-                  <p>Video resized and passed safe-area check.</p>
-                </div>
+            <dl class="definition-grid definition-grid--stacked">
+              <div>
+                <dt>Total clouds</dt>
+                <dd id="captions-total">0</dd>
               </div>
-              <div class="timeline-item">
-                <span class="timeline-time">11:40</span>
-                <div>
-                  <strong>Voiceover edit auto-captioned</strong>
-                  <p>Needs one terminology cleanup before posting.</p>
-                </div>
+              <div>
+                <dt>Filled clouds</dt>
+                <dd id="captions-filled">0</dd>
               </div>
-              <div class="timeline-item">
-                <span class="timeline-time">10:05</span>
-                <div>
-                  <strong>Hook clip published</strong>
-                  <p>Reel is live and queued for engagement review.</p>
-                </div>
+              <div>
+                <dt>Total characters</dt>
+                <dd id="captions-characters">0</dd>
+              </div>
+            </dl>
+
+            <a class="text-link" href="./captions.html">Open caption workspace</a>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Ingestion</p>
+                <h2>Collection monitor</h2>
               </div>
             </div>
+
+            <dl class="definition-grid definition-grid--stacked">
+              <div>
+                <dt>Status</dt>
+                <dd id="monitor-status">Idle</dd>
+              </div>
+              <div>
+                <dt>Last checked</dt>
+                <dd id="monitor-last-checked">Never</dd>
+              </div>
+              <div>
+                <dt>Items found</dt>
+                <dd id="monitor-items-found">0</dd>
+              </div>
+              <div>
+                <dt>Items queued</dt>
+                <dd id="monitor-items-queued">0</dd>
+              </div>
+            </dl>
+
+            <a class="text-link" href="./queue.html">Review queue controls</a>
           </article>
         </aside>
       </section>
     </main>
   </div>
+
+  <script src="./scripts/dashboard.js"></script>
 </body>
 </html>

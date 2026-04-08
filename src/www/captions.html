@@ -3,48 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TT 2 IG Captions</title>
+  <title>TT2IG Captions</title>
+  <meta
+    name="description"
+    content="Draft and manage TT2IG captions with autosave, quick copy actions, and workspace totals."
+  />
   <link rel="stylesheet" href="./styles/shared.css" />
   <link rel="stylesheet" href="./styles/captions.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <h1 class="brand">TT 2 IG</h1>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-      <nav class="nav-strip" aria-label="Primary">
-        <a class="nav-button" href="./index.html" aria-label="Dashboard">Dashboard</a>
-        <a class="nav-button" href="./queue.html" aria-label="Queue">Queue</a>
-        <a class="nav-button" href="./captions.html" aria-current="page" aria-label="Captions">Captions</a>
-      </nav>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand-lockup" href="./index.html" aria-label="TT2IG overview">
+          <span class="brand-lockup__mark">TT2IG</span>
+          <span class="brand-lockup__text">
+            <strong>Operator console</strong>
+            <span>Queue, caption, and ingestion control room</span>
+          </span>
+        </a>
+
+        <nav class="nav-strip" aria-label="Primary">
+          <a class="nav-button" href="./index.html">Overview</a>
+          <a class="nav-button" href="./queue.html">Queue</a>
+          <a class="nav-button" href="./captions.html" aria-current="page">Captions</a>
+        </nav>
+      </div>
     </header>
 
-    <main class="content captions-page">
-      <section class="captions-hero" aria-label="Captions workspace">
-        <div class="captions-hero__copy">
-          <p>Caption blocks</p>
+    <main id="main-content" class="page-shell captions-page">
+      <section class="page-hero">
+        <div class="page-hero__intro">
+          <p class="eyebrow">Caption workspace</p>
+          <h1>Keep reusable copy close at hand.</h1>
+          <p class="page-hero__body">
+            Draft caption blocks, keep an eye on volume, and let autosave persist the workspace while you edit.
+          </p>
+        </div>
+
+        <div class="hero-callout">
+          <p class="hero-callout__label">Autosave state</p>
+          <strong id="caption-save-status" class="caption-save-status" aria-live="polite" data-state="loading">Loading drafts...</strong>
+          <p>Edits save automatically after short pauses so the workspace stays current.</p>
         </div>
       </section>
 
       <section class="captions-toolbar" aria-label="Caption controls">
         <div class="captions-toolbar__meta">
           <div class="captions-toolbar__stats" aria-label="Workspace totals">
-            <div class="toolbar-stat">
+            <article class="toolbar-stat">
               <span class="toolbar-stat__label">Clouds</span>
               <strong id="caption-cloud-total">3</strong>
-            </div>
-            <div class="toolbar-stat">
+            </article>
+            <article class="toolbar-stat">
+              <span class="toolbar-stat__label">Filled</span>
+              <strong id="caption-filled-total">0</strong>
+            </article>
+            <article class="toolbar-stat">
               <span class="toolbar-stat__label">Characters</span>
               <strong id="caption-character-total">0</strong>
-            </div>
+            </article>
           </div>
-          <p
-            id="caption-save-status"
-            class="caption-save-status"
-            aria-live="polite"
-            data-state="loading"
-          >Loading drafts...</p>
         </div>
+
         <button id="add-caption-cloud" class="toolbar-button" type="button">Add caption cloud</button>
       </section>
 
@@ -62,7 +85,7 @@
       <div class="caption-cloud__header">
         <div>
           <span class="caption-cloud__eyebrow">Caption</span>
-          <h3 class="caption-cloud__title">Caption 1</h3>
+          <h2 class="caption-cloud__title">Caption 1</h2>
         </div>
         <div class="caption-cloud__meta">
           <span class="caption-cloud__count" aria-live="polite">0 characters</span>
@@ -75,7 +98,7 @@
           class="caption-cloud__input"
           rows="12"
           spellcheck="true"
-          placeholder="Paste a caption blob here."
+          placeholder="Paste or draft a reusable caption block here."
         ></textarea>
       </label>
 
