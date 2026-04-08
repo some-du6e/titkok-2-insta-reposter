@@ -6,6 +6,8 @@ const queueFeedback = document.querySelector("#queue-feedback");
 const autoPostEnabledInput = document.querySelector("#auto-post-enabled");
 const autoPostIntervalInput = document.querySelector("#auto-post-interval");
 const prependCoverIntroEnabledInput = document.querySelector("#prepend-cover-intro-enabled");
+const coverImageFileInput = document.querySelector("#cover-image-file");
+const coverImageUploadButton = document.querySelector("#cover-image-upload");
 const queueSettingsSaveButton = document.querySelector("#queue-settings-save");
 const queueRunNextButton = document.querySelector("#queue-run-next");
 const systemRestartButton = document.querySelector("#system-restart");
@@ -29,6 +31,7 @@ const publicCollectionError = document.querySelector("#public-collection-error")
 const QUEUE_API_URL = "/api/queue";
 const QUEUE_SETTINGS_API_URL = "/api/queue/settings";
 const QUEUE_RUN_NEXT_API_URL = "/api/queue/run-next";
+const COVER_IMAGE_API_URL = "/api/cover-image";
 const SYSTEM_RESTART_API_URL = "/api/system/restart";
 const SYSTEM_UPDATE_API_URL = "/api/system/update";
 const PUBLIC_COLLECTION_STATUS_API_URL = "/api/public-collection/status";
@@ -319,6 +322,40 @@ async function saveQueueSettings() {
   }
 }
 
+async function uploadCoverImage() {
+  const selectedFile = coverImageFileInput.files?.[0];
+  if (!selectedFile) {
+    setFeedback("Choose an image file before uploading.", true);
+    return;
+  }
+
+  coverImageUploadButton.disabled = true;
+  const previousText = coverImageUploadButton.textContent;
+  coverImageUploadButton.textContent = "Uploading...";
+
+  try {
+    const formData = new FormData();
+    formData.append("cover_image", selectedFile);
+
+    const response = await fetch(COVER_IMAGE_API_URL, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to upload cover image");
+    }
+
+    coverImageFileInput.value = "";
+    setFeedback(`Cover image uploaded: ${data.filename}`);
+  } catch (error) {
+    setFeedback(error.message, true);
+  } finally {
+    coverImageUploadButton.disabled = false;
+    coverImageUploadButton.textContent = previousText;
+  }
+}
+
 async function savePublicCollectionSettings() {
   const pollSeconds = Number.parseInt(publicCollectionPollSecondsInput.value, 10);
   if (!Number.isInteger(pollSeconds) || pollSeconds < 1) {
@@ -572,6 +609,10 @@ publicCollectionTestButton.addEventListener("click", () => {
 
 publicCollectionSyncButton.addEventListener("click", () => {
   syncPublicCollection();
+});
+
+coverImageUploadButton.addEventListener("click", () => {
+  uploadCoverImage();
 });
 
 loadQueue().catch((error) => {

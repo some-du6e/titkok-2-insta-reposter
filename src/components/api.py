@@ -22,7 +22,7 @@ from src.components.pipeline import (
     update_queue_settings,
 )
 from src.components.preview_service import PreviewGenerationError, build_preview_response
-from src.components.queue_store import QueueItemNotFoundError
+from src.components.queue_store import PROJECT_ROOT, QueueItemNotFoundError
 from src.components.queue_worker import start_queue_worker
 from src.components.system_update import (
     SystemUpdateError,
@@ -101,6 +101,25 @@ def upload_video():
         return flask.jsonify(result)
     except Exception as e:
         return _json_error(str(e), 500)
+
+
+@app.route("/api/cover-image", methods=["POST"])
+def upload_cover_image():
+    cover_image = flask.request.files.get("cover_image")
+    if cover_image is None or not cover_image.filename:
+        return _json_error("Missing cover_image file", 400)
+
+    content_type = (cover_image.mimetype or "").lower()
+    if content_type and not content_type.startswith("image/"):
+        return _json_error("cover_image must be an image file", 400)
+
+    destination_path = PROJECT_ROOT / "coverrrr.png"
+    try:
+        cover_image.save(destination_path)
+    except Exception as e:
+        return _json_error(f"Failed to save cover image: {e}", 500)
+
+    return flask.jsonify({"saved": True, "path": str(destination_path), "filename": destination_path.name})
 
 
 @app.route("/api/queue", methods=["GET"])

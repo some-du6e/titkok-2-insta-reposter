@@ -79,6 +79,8 @@ python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --caption
 python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --thumb-offset 1200
 ```
 
+You can also call `POST /api/upload`, but it does not accept direct browser file uploads. Send form fields named `video_path` (required) and `cover_image_path` (optional), where each value is a filesystem path on the machine running the Flask server. Use `cover_image_path` to set a custom cover image during publish.
+
 ## Tests
 
 ```bash
