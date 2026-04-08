@@ -79,6 +79,8 @@ python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --caption
 python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --thumb-offset 1200
 ```
 
+You can also upload from the browser by calling `POST /api/upload`; include `cover_image_path` in the form data to set a custom cover image during publish.
+
 ## Tests
 
 ```bash
