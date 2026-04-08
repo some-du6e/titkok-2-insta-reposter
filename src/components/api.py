@@ -221,6 +221,28 @@ def upload_cover_image():
     return flask.jsonify({"saved": True, "path": str(destination_path), "filename": destination_path.name})
 
 
+@app.route("/api/cover-image/from-url", methods=["POST"])
+def cover_image_from_url():
+    from src.components.video_logic.tiktok import TikTokDownloadError, fetch_video_cover_image
+
+    payload = flask.request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _json_error("Request body must be a JSON object", 400)
+
+    url = payload.get("url")
+    if not isinstance(url, str) or not url.strip():
+        return _json_error("Missing url parameter", 400)
+
+    try:
+        saved_path = fetch_video_cover_image(url)
+    except TikTokDownloadError as e:
+        return _json_error(str(e), 400)
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+    return flask.jsonify({"saved": True, "path": str(saved_path), "filename": saved_path.name})
+
+
 @app.route("/api/queue", methods=["GET"])
 def get_queue():
     try:
