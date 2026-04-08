@@ -78,3 +78,9 @@ python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --caption
 # Use a frame from the video as cover thumbnail (milliseconds)
 python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --thumb-offset 1200
 ```
+
+## Tests
+
+```bash
+PYTHONPATH=. pytest -q
+```
