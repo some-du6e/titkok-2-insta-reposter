@@ -90,3 +90,5 @@ For targeted runs:
 ```bash
 PYTHONPATH=. pytest -q tests/test_render.py
 ```
+
+Use `-k <pattern>` to narrow the test run to a specific case while iterating.
