@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RESTART_COMMAND = ["pyker", "restart", "ig2tt"]
+RESTART_COMMAND = ["sudo", "systemctl", "restart", "tiktok2instagram"]
 _UPDATE_LOCK = threading.Lock()
 
 
