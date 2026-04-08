@@ -513,6 +513,10 @@ def fetch_video_cover_image(url: str) -> Path:
     if not isinstance(url, str) or not url.strip():
         raise TikTokDownloadError("URL must not be empty")
 
+    parsed_url = urlparse(url.strip())
+    if parsed_url.scheme not in {"http", "https"}:
+        raise TikTokDownloadError("URL must use http or https")
+
     command = [
         *get_yt_dlp_command(),
         "--print-json",
@@ -530,8 +534,12 @@ def fetch_video_cover_image(url: str) -> Path:
     if result.returncode != 0:
         raise TikTokDownloadError(result.stderr.strip() or "Failed to fetch video metadata")
 
+    stdout = result.stdout.strip()
+    if not stdout:
+        raise TikTokDownloadError("yt-dlp returned no metadata")
+
     try:
-        metadata = json.loads(result.stdout.strip().splitlines()[-1])
+        metadata = json.loads(stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError) as exc:
         raise TikTokDownloadError("yt-dlp returned unreadable metadata") from exc
 
