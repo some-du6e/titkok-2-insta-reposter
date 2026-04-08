@@ -19,7 +19,7 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
         result = run_system_restart()
 
         self.assertTrue(result["ok"])
-        self.assertEqual(result["restart"]["command"], "pyker restart ig2tt")
+        self.assertEqual(result["restart"]["command"], "sudo systemctl restart tiktok2instagram")
         mock_popen.assert_called_once()
 
     @patch("src.components.system_update.subprocess.Popen")
@@ -34,7 +34,7 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["pull"]["updated"])
-        self.assertEqual(result["restart"]["command"], "pyker restart ig2tt")
+        self.assertEqual(result["restart"]["command"], "sudo systemctl restart tiktok2instagram")
         mock_popen.assert_called_once()
 
     @patch("src.components.system_update.subprocess.Popen")
@@ -79,9 +79,9 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
         self.assertEqual(error.exception.stage, "pull")
         self.assertIn("no remote repository", error.exception.stderr)
 
-    @patch("src.components.system_update.subprocess.Popen", side_effect=FileNotFoundError("pyker"))
+    @patch("src.components.system_update.subprocess.Popen", side_effect=FileNotFoundError("systemctl"))
     @patch("src.components.system_update.subprocess.run")
-    def test_missing_pyker_raises_restart_error_after_successful_pull(self, mock_run, _mock_popen):
+    def test_missing_systemctl_raises_restart_error_after_successful_pull(self, mock_run, _mock_popen):
         mock_run.side_effect = [
             _completed_process(["git", "status", "--porcelain"], stdout=""),
             _completed_process(["git", "pull"], stdout="Updating 123..456"),
@@ -91,7 +91,7 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
             run_system_update()
 
         self.assertEqual(error.exception.stage, "restart")
-        self.assertIn("pyker", error.exception.stderr)
+        self.assertIn("systemctl", error.exception.stderr)
 
     @patch("src.components.system_update.subprocess.run", side_effect=FileNotFoundError("git"))
     def test_missing_git_raises_status_error(self, mock_run):
@@ -138,7 +138,7 @@ class SystemUpdateApiTestCase(unittest.TestCase):
         mock_run_system_update.return_value = {
             "ok": True,
             "pull": {"updated": True, "stdout": "Updating", "stderr": ""},
-            "restart": {"command": "pyker restart ig2tt", "started": True},
+            "restart": {"command": "sudo systemctl restart tiktok2instagram", "started": True},
             "message": "Update pulled. Restart requested.",
         }
 
@@ -151,13 +151,13 @@ class SystemUpdateApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertTrue(payload["ok"])
-        self.assertEqual(payload["restart"]["command"], "pyker restart ig2tt")
+        self.assertEqual(payload["restart"]["command"], "sudo systemctl restart tiktok2instagram")
 
     @patch("src.components.api.run_system_restart")
     def test_restart_endpoint_returns_success_payload(self, mock_run_system_restart):
         mock_run_system_restart.return_value = {
             "ok": True,
-            "restart": {"command": "pyker restart ig2tt", "started": True},
+            "restart": {"command": "sudo systemctl restart tiktok2instagram", "started": True},
             "message": "Restart requested.",
         }
 
@@ -170,7 +170,7 @@ class SystemUpdateApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertTrue(payload["ok"])
-        self.assertEqual(payload["restart"]["command"], "pyker restart ig2tt")
+        self.assertEqual(payload["restart"]["command"], "sudo systemctl restart tiktok2instagram")
 
     @patch("src.components.api.run_system_update")
     def test_update_endpoint_returns_structured_error(self, mock_run_system_update):
