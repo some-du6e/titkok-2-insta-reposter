@@ -84,6 +84,9 @@ def upload_video():
     video_path = flask.request.form.get("video_path")
     caption = flask.request.form.get("caption", "")
     media_type = flask.request.form.get("media_type", "REELS")
+    cover_image_path = flask.request.form.get("cover_image_path")
+    thumb_offset = flask.request.form.get("thumb_offset", type=int)
+    share_to_feed = flask.request.form.get("share_to_feed", type=lambda v: str(v).lower() in {"1", "true", "yes"})
     if not video_path:
         return _json_error("Missing video_path parameter", 400)
     try:
@@ -91,6 +94,9 @@ def upload_video():
             video_path=video_path,
             caption=caption,
             media_type=media_type,
+            cover_image_path=cover_image_path,
+            thumb_offset=thumb_offset,
+            share_to_feed=share_to_feed,
         )
         return flask.jsonify(result)
     except Exception as e:

@@ -20,6 +20,7 @@ INSTAGRAM_APP_ID=your_app_id
 INSTAGRAM_APP_SECRET=your_app_secret
 INSTAGRAM_ACCESS_TOKEN=your_long_lived_access_token
 INSTAGRAM_ACCOUNT_ID=your_ig_account_id
+INSTAGRAM_GRAPH_API_URL=https://graph.instagram.com/v25.0
 AUTO_POST_ENABLED=false
 AUTO_POST_INTERVAL_MINUTES=15
 ```
@@ -45,10 +46,10 @@ GET https://graph.facebook.com/v25.0/{PAGE_ID}?fields=instagram_business_account
 
 ## API Endpoints (Instagram Graph API)
 
-- Create container: `POST https://graph.instagram.com/v25.0/{IG_ID}/media`
+- Create container: `POST {INSTAGRAM_GRAPH_API_URL}/{IG_ID}/media`
 - Upload video: `POST https://rupload.facebook.com/ig-api-upload/v25.0/{CONTAINER_ID}`
-- Publish: `POST https://graph.instagram.com/v25.0/{IG_ID}/media_publish`
-- Check status: `GET https://graph.instagram.com/v25.0/{CONTAINER_ID}?fields=status_code`
+- Publish: `POST {INSTAGRAM_GRAPH_API_URL}/{IG_ID}/media_publish`
+- Check status: `GET {INSTAGRAM_GRAPH_API_URL}/{CONTAINER_ID}?fields=status_code`
 
 ## Workflow
 
@@ -70,4 +71,10 @@ GET https://graph.facebook.com/v25.0/{PAGE_ID}?fields=instagram_business_account
 ```pwsh
 # Upload local video to Instagram
 python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --caption "My caption #tags"
+
+# Upload with an explicit custom Reel cover image (publicly hosted via UploadThing)
+python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --caption "My caption #tags" --cover-image-path "cover.jpg"
+
+# Use a frame from the video as cover thumbnail (milliseconds)
+python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --thumb-offset 1200
 ```

@@ -33,7 +33,16 @@ class InstagramUploader:
                 "INSTAGRAM_ACCOUNT_ID in your .env file."
             )
     
-    def upload_video(self, video_path, caption="", media_type="REELS", poll_timeout=300):
+    def upload_video(
+        self,
+        video_path,
+        caption="",
+        media_type="REELS",
+        poll_timeout=300,
+        cover_image_path=None,
+        thumb_offset=None,
+        share_to_feed=None,
+    ):
         """
         Upload a local video and publish it to Instagram.
         
@@ -55,6 +64,12 @@ class InstagramUploader:
         uploadthing_result = upload_to_uploadthing(video_path)
         video_url = uploadthing_result["url"]
         print(f"[instagram.upload] UploadThing URL: {video_url}")
+        cover_url = None
+        if cover_image_path:
+            print(f"[instagram.upload] Uploading cover image to UploadThing: {cover_image_path}")
+            cover_upload_result = upload_to_uploadthing(cover_image_path)
+            cover_url = cover_upload_result["url"]
+            print(f"[instagram.upload] Cover image URL: {cover_url}")
         
         # Step 2: Create Instagram container with the public URL
         print("[instagram.upload] Creating Instagram container...")
@@ -62,6 +77,9 @@ class InstagramUploader:
             video_url=video_url,
             caption=caption,
             media_type=media_type,
+            cover_url=cover_url,
+            thumb_offset=thumb_offset,
+            share_to_feed=share_to_feed,
         )
         print(f"[instagram.upload] Container created: {container_id}")
         
@@ -84,7 +102,16 @@ class InstagramUploader:
             "video_url": video_url,
         }
     
-    def upload_from_url(self, video_url, caption="", media_type="REELS", poll_timeout=300):
+    def upload_from_url(
+        self,
+        video_url,
+        caption="",
+        media_type="REELS",
+        poll_timeout=300,
+        cover_url=None,
+        thumb_offset=None,
+        share_to_feed=None,
+    ):
         """
         Upload a video from a public URL and publish to Instagram.
         
@@ -106,6 +133,9 @@ class InstagramUploader:
             video_url=video_url,
             caption=caption,
             media_type=media_type,
+            cover_url=cover_url,
+            thumb_offset=thumb_offset,
+            share_to_feed=share_to_feed,
         )
         print(f"[instagram.upload] Container created: {container_id}")
         
@@ -149,6 +179,9 @@ if __name__ == "__main__":
     parser.add_argument("--caption", default="", help="Post caption")
     parser.add_argument("--type", default="REELS", choices=["REELS", "VIDEO", "STORIES"],
                         help="Media type")
+    parser.add_argument("--cover-image-path", default=None, help="Optional local cover image path")
+    parser.add_argument("--thumb-offset", default=None, type=int, help="Optional thumbnail frame offset (ms)")
+    parser.add_argument("--share-to-feed", action="store_true", help="Share reel to feed")
     
     args = parser.parse_args()
     
@@ -157,6 +190,9 @@ if __name__ == "__main__":
         video_path=args.video_path,
         caption=args.caption,
         media_type=args.type,
+        cover_image_path=args.cover_image_path,
+        thumb_offset=args.thumb_offset,
+        share_to_feed=args.share_to_feed,
     )
     
     print(f"\nSuccess! Posted to Instagram.")
