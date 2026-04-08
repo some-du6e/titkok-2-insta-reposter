@@ -84,3 +84,9 @@ python src/components/video_logic/uploadvideo.py "videos/my_video.mp4" --thumb-o
 ```bash
 PYTHONPATH=. pytest -q
 ```
+
+For targeted runs:
+
+```bash
+PYTHONPATH=. pytest -q tests/test_render.py
+```
