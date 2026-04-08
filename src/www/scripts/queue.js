@@ -13,6 +13,8 @@ const autoPostIntervalInput = document.querySelector("#auto-post-interval");
 const prependCoverIntroEnabledInput = document.querySelector("#prepend-cover-intro-enabled");
 const coverImageFileInput = document.querySelector("#cover-image-file");
 const coverImageUploadButton = document.querySelector("#cover-image-upload");
+const coverImageUrlInput = document.querySelector("#cover-image-url");
+const coverImageFromUrlButton = document.querySelector("#cover-image-from-url");
 const queueSettingsSaveButton = document.querySelector("#queue-settings-save");
 const queueRunNextButton = document.querySelector("#queue-run-next");
 const systemRestartButton = document.querySelector("#system-restart");
@@ -37,6 +39,7 @@ const QUEUE_API_URL = "/api/queue";
 const QUEUE_SETTINGS_API_URL = "/api/queue/settings";
 const QUEUE_RUN_NEXT_API_URL = "/api/queue/run-next";
 const COVER_IMAGE_API_URL = "/api/cover-image";
+const COVER_IMAGE_FROM_URL_API_URL = "/api/cover-image/from-url";
 const SYSTEM_RESTART_API_URL = "/api/system/restart";
 const SYSTEM_UPDATE_API_URL = "/api/system/update";
 const PUBLIC_COLLECTION_STATUS_API_URL = "/api/public-collection/status";
@@ -374,6 +377,38 @@ async function uploadCoverImage() {
   }
 }
 
+async function fetchCoverFromUrl() {
+  const url = coverImageUrlInput.value.trim();
+  if (!url) {
+    setFeedback("Enter a video URL before fetching the cover image.", true);
+    return;
+  }
+
+  coverImageFromUrlButton.disabled = true;
+  const previousText = coverImageFromUrlButton.textContent;
+  coverImageFromUrlButton.textContent = "Fetching...";
+
+  try {
+    const response = await fetch(COVER_IMAGE_FROM_URL_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch cover image from URL");
+    }
+
+    coverImageUrlInput.value = "";
+    setFeedback(`Cover image saved from video: ${data.filename}`);
+  } catch (error) {
+    setFeedback(error.message, true);
+  } finally {
+    coverImageFromUrlButton.disabled = false;
+    coverImageFromUrlButton.textContent = previousText;
+  }
+}
+
 async function savePublicCollectionSettings() {
   const pollSeconds = Number.parseInt(publicCollectionPollSecondsInput.value, 10);
   if (!Number.isInteger(pollSeconds) || pollSeconds < 1) {
@@ -631,6 +666,10 @@ publicCollectionSyncButton.addEventListener("click", () => {
 
 coverImageUploadButton.addEventListener("click", () => {
   uploadCoverImage();
+});
+
+coverImageFromUrlButton.addEventListener("click", () => {
+  fetchCoverFromUrl();
 });
 
 loadQueue().catch((error) => {

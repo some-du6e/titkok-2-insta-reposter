@@ -494,6 +494,56 @@ def prepare_tiktok_media(url: str, *, prepend_cover_intro: bool = False) -> dict
     return _prepare_video_media(url, metadata, prepend_cover_intro=prepend_cover_intro)
 
 
+def fetch_video_cover_image(url: str) -> Path:
+    """Download the cover/thumbnail of any yt-dlp-supported video URL and save it as the cover image.
+
+    Fetches video metadata via yt-dlp, selects the best available thumbnail, downloads
+    it, and saves it to ``COVER_IMAGE_PATH`` (``coverrrr.png`` in the project root).
+
+    Args:
+        url: A publicly accessible video URL (TikTok or any yt-dlp-supported site).
+
+    Returns:
+        The :class:`~pathlib.Path` where the cover image was saved.
+
+    Raises:
+        TikTokDownloadError: If the URL is empty, metadata cannot be fetched, no
+            thumbnail is available, or the download fails.
+    """
+    if not isinstance(url, str) or not url.strip():
+        raise TikTokDownloadError("URL must not be empty")
+
+    command = [
+        *get_yt_dlp_command(),
+        "--print-json",
+        "--no-warnings",
+        "--skip-download",
+        url.strip(),
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise TikTokDownloadError(result.stderr.strip() or "Failed to fetch video metadata")
+
+    try:
+        metadata = json.loads(result.stdout.strip().splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise TikTokDownloadError("yt-dlp returned unreadable metadata") from exc
+
+    image_candidates = _extract_image_candidates(metadata)
+    if not image_candidates:
+        raise TikTokDownloadError("No cover image found for the given video URL")
+
+    COVER_IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _download_binary(image_candidates[0], COVER_IMAGE_PATH)
+    return COVER_IMAGE_PATH
+
+
 def download_tiktok_video(url: str) -> dict:
     """Backward-compatible alias for the older video-only downloader name."""
     return prepare_tiktok_media(url)
