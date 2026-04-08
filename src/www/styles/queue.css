@@ -59,6 +59,14 @@
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) minmax(180px, 220px) auto;
 }
 
+.queue-cover-upload {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
 .queue-toggle,
 .queue-field {
   display: grid;
@@ -103,6 +111,11 @@
   color: var(--text);
   font: inherit;
   font-weight: 700;
+}
+
+.queue-field input[type="file"] {
+  min-height: 52px;
+  padding: 10px 14px;
 }
 
 .queue-field--wide {
@@ -295,6 +308,10 @@
 
   .queue-controls__body,
   .queue-runtime {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-cover-upload {
     grid-template-columns: 1fr;
   }
 
