@@ -259,7 +259,7 @@ def fetch_public_collection(
     timeout: int = 20,
 ) -> CollectionFetchResult:
     normalized_url = normalize_collection_url(url)
-    _owned_session = session is None
+    owns_session = session is None
     client = session if session is not None else requests.Session()
     try:
         try:
@@ -315,5 +315,5 @@ def fetch_public_collection(
                 metadata={"source_url": normalized_url},
             )
     finally:
-        if _owned_session:
+        if owns_session:
             client.close()

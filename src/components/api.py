@@ -209,7 +209,7 @@ def upload_cover_image():
         return _json_error("Missing cover_image file", 400)
 
     content_type = (cover_image.mimetype or "").lower()
-    if not content_type.startswith("image/"):
+    if not content_type or not content_type.startswith("image/"):
         return _json_error("cover_image must be an image file", 400)
 
     destination_path = PROJECT_ROOT / "coverrrr.png"
@@ -332,7 +332,7 @@ def test_public_collection():
         status_code = 200 if result.get("fetch_ok") else 400
         return flask.jsonify(result), status_code
     except Exception as e:
-        return _json_error(str(e), 500)
+        return _json_error(str(e)[:512], 500)
 
 
 @app.route("/api/public-collection/sync", methods=["POST"])

@@ -21,6 +21,7 @@ def _now_iso() -> str:
 
 
 def _safe_error_message(exc: Exception) -> str:
+    """Return a sanitized error string capped at 512 chars to avoid exposing internal details."""
     return str(exc)[:512]
 
 
