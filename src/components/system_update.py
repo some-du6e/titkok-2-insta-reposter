@@ -101,7 +101,7 @@ def _launch_restart() -> dict:
         )
     except FileNotFoundError as exc:
         raise SystemUpdateError(
-            "Restart command failed: pyker was not found on PATH.",
+            f"Restart command failed: '{RESTART_COMMAND[0]}' was not found on PATH.",
             stage="restart",
             stderr=str(exc),
         ) from exc

@@ -1,11 +1,7 @@
 import os
-import sys
 import requests
 from dotenv import load_dotenv
 
-# Add parent directory to path for dotenv
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dotenv import load_dotenv
 load_dotenv()
 
 # Import from sibling modules
@@ -158,14 +154,14 @@ class InstagramUploader:
     
     def check_rate_limit(self):
         """Check your current content publishing rate limit."""
-        from api import GRAPH_API_URL
-        
+        from src.components.video_logic.api import GRAPH_API_URL
+
         endpoint = f"{GRAPH_API_URL}/{self.account_id}/content_publishing_limit"
         params = {
             "access_token": self.access_token,
         }
-        
-        response = requests.get(endpoint, params=params)
+
+        response = requests.get(endpoint, params=params, timeout=60)
         response.raise_for_status()
         
         return response.json()

@@ -20,6 +20,10 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _safe_error_message(exc: Exception) -> str:
+    return str(exc)[:512]
+
+
 def get_public_collection_status() -> dict:
     settings = queue_store.get_settings()
     return {
@@ -57,13 +61,13 @@ def test_public_collection_url(url: str) -> dict:
             "normalized_url": normalized,
             "metadata": result.metadata or {},
         }
-    except (PublicCollectionError, Exception) as exc:
+    except Exception as exc:
         return {
             "fetch_ok": False,
             "extract_strategy": "none",
             "items_found": 0,
             "sample_items": [],
-            "error": str(exc),
+            "error": _safe_error_message(exc),
             "normalized_url": None,
             "metadata": {},
         }

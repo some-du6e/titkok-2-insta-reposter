@@ -249,7 +249,7 @@ def upload_and_publish(video_path, caption="", media_type="REELS", poll_timeout=
     # Step 3: Wait for video processing
     if not wait_for_container_ready(container_id, timeout=poll_timeout):
         status = check_container_status(container_id)
-        raise Exception(f"Container failed with status: {status.get('status_code')}")
+        raise RuntimeError(f"Container failed with status: {status.get('status_code')}")
     
     # Step 4: Publish
     media_id = publish_container(container_id)
@@ -276,7 +276,7 @@ def upload_and_publish_url(video_url, caption="", media_type="REELS", poll_timeo
     # Step 2: Wait for container to be ready (video processing)
     if not wait_for_container_ready(container_id, timeout=poll_timeout):
         status = check_container_status(container_id)
-        raise Exception(f"Container failed: {status.get('status_code')}")
+        raise RuntimeError(f"Container failed: {status.get('status_code')}")
     
     # Step 3: Publish
     media_id = publish_container(container_id)

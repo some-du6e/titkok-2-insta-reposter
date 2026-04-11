@@ -34,11 +34,7 @@ def load_captions() -> list[str]:
     if not CAPTIONS_PATH.exists():
         return []
 
-    try:
-        raw_content = CAPTIONS_PATH.read_text(encoding="utf-8")
-    except OSError:
-        raise
-
+    raw_content = CAPTIONS_PATH.read_text(encoding="utf-8")
     if not raw_content.strip():
         return []
 

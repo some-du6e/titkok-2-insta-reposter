@@ -209,7 +209,7 @@ def upload_cover_image():
         return _json_error("Missing cover_image file", 400)
 
     content_type = (cover_image.mimetype or "").lower()
-    if content_type and not content_type.startswith("image/"):
+    if not content_type.startswith("image/"):
         return _json_error("cover_image must be an image file", 400)
 
     destination_path = PROJECT_ROOT / "coverrrr.png"

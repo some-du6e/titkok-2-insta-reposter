@@ -259,48 +259,61 @@ def fetch_public_collection(
     timeout: int = 20,
 ) -> CollectionFetchResult:
     normalized_url = normalize_collection_url(url)
-    client = session or requests.Session()
-    response = client.get(
-        normalized_url,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-        timeout=timeout,
-    )
-    response.raise_for_status()
-    html = response.text
-
-    html_items = extract_html_items(html)
-    if html_items:
-        return CollectionFetchResult(
-            items=html_items,
-            strategy="html_embedded",
-            metadata={"source_url": normalized_url},
-        )
-
-    payload = _extract_rehydration_payload(html)
-    json_items = extract_embedded_json_items(payload)
-    if json_items:
-        return CollectionFetchResult(
-            items=json_items,
-            strategy="embedded_json",
-            metadata={"source_url": normalized_url},
-        )
-
+    _owned_session = session is None
+    client = session if session is not None else requests.Session()
     try:
-        fallback_result = _yt_dlp_collection_items(normalized_url, runner=runner)
-        fallback_metadata = dict(fallback_result.metadata or {})
-        fallback_metadata["source_url"] = normalized_url
-        fallback_result.metadata = fallback_metadata
-        return fallback_result
-    except PublicCollectionError as exc:
-        return CollectionFetchResult(
-            items=[],
-            strategy="none",
-            error=str(exc),
-            metadata={"source_url": normalized_url},
-        )
+        try:
+            response = client.get(
+                normalized_url,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+                    ),
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+                timeout=timeout,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            return CollectionFetchResult(
+                items=[],
+                strategy="none",
+                error=str(exc),
+                metadata={"source_url": normalized_url},
+            )
+        html = response.text
+
+        html_items = extract_html_items(html)
+        if html_items:
+            return CollectionFetchResult(
+                items=html_items,
+                strategy="html_embedded",
+                metadata={"source_url": normalized_url},
+            )
+
+        payload = _extract_rehydration_payload(html)
+        json_items = extract_embedded_json_items(payload)
+        if json_items:
+            return CollectionFetchResult(
+                items=json_items,
+                strategy="embedded_json",
+                metadata={"source_url": normalized_url},
+            )
+
+        try:
+            fallback_result = _yt_dlp_collection_items(normalized_url, runner=runner)
+            fallback_metadata = dict(fallback_result.metadata or {})
+            fallback_metadata["source_url"] = normalized_url
+            fallback_result.metadata = fallback_metadata
+            return fallback_result
+        except PublicCollectionError as exc:
+            return CollectionFetchResult(
+                items=[],
+                strategy="none",
+                error=str(exc),
+                metadata={"source_url": normalized_url},
+            )
+    finally:
+        if _owned_session:
+            client.close()
