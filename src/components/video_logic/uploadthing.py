@@ -7,6 +7,7 @@ load_dotenv()
 UPLOADTHING_APP_ID = os.getenv("UPLOADTHING_APP_ID")
 UPLOADTHING_SECRET = os.getenv("UPLOADTHING_SECRET")
 UPLOADTHING_API_URL = "https://api.uploadthing.com"
+REQUEST_TIMEOUT_SECONDS = 60
 
 # Legacy auth: use secret as the API key
 HEADERS = {
@@ -49,7 +50,7 @@ def prepare_upload(filename, file_size, content_type="video/mp4"):
         "contentType": content_type,
     }
     
-    response = requests.post(endpoint, json=payload, headers=HEADERS)
+    response = requests.post(endpoint, json=payload, headers=HEADERS, timeout=REQUEST_TIMEOUT_SECONDS)
     _raise_with_response_context(response, "UploadThing prepare upload")
     
     return response.json()
@@ -74,7 +75,7 @@ def upload_file(upload_url, file_path, content_type="video/mp4"):
         "Content-Type": content_type,
     }
     
-    response = requests.post(upload_url, data=file_data, headers=headers)
+    response = requests.post(upload_url, data=file_data, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
     _raise_with_response_context(response, "UploadThing file upload")
     
     return response.json()
@@ -109,7 +110,7 @@ def upload_local_file(file_path, filename=None, content_type="video/mp4"):
     }
     
     print(f"[uploadthing] Requesting upload slot for filename={filename} size={file_size}")
-    response = requests.post(endpoint, json=payload, headers=HEADERS)
+    response = requests.post(endpoint, json=payload, headers=HEADERS, timeout=REQUEST_TIMEOUT_SECONDS)
     _raise_with_response_context(response, "UploadThing uploadFiles")
     
     data = response.json()
@@ -128,7 +129,8 @@ def upload_local_file(file_path, filename=None, content_type="video/mp4"):
     s3_response = requests.post(
         upload_url,
         data=fields,
-        files={"file": (filename, file_content, content_type)}
+        files={"file": (filename, file_content, content_type)},
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
     _raise_with_response_context(s3_response, "UploadThing storage upload")
     

@@ -337,7 +337,6 @@ def _guess_extension(url: str, content_type: str | None, fallback: str) -> str:
             return stripped
         if "/" not in stripped and stripped.replace("-", "").replace("_", "").isalnum():
             return f".{stripped}"
-    if isinstance(content_type, str) and content_type:
         guessed = mimetypes.guess_extension(content_type.split(";")[0].strip())
         if guessed:
             return guessed
