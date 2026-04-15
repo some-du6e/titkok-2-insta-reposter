@@ -28,12 +28,14 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
         mock_run.side_effect = [
             _completed_process(["git", "status", "--porcelain"], stdout=""),
             _completed_process(["git", "pull"], stdout="Updating 123..456"),
+            _completed_process(["python", "-m", "pip", "install", "-r", "requirements.txt"], stdout="installed"),
         ]
 
         result = run_system_update()
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["pull"]["updated"])
+        self.assertIn("pip install -r", result["install"]["command"])
         self.assertEqual(result["restart"]["command"], "sudo systemctl restart tiktok2instagram")
         mock_popen.assert_called_once()
 
@@ -44,6 +46,7 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
             _completed_process(["git", "status", "--porcelain"], stdout=" M src/components/api.py\n"),
             _completed_process(["git", "reset", "--hard", "HEAD"], stdout="HEAD is now at abc123"),
             _completed_process(["git", "pull"], stdout="Already up to date."),
+            _completed_process(["python", "-m", "pip", "install", "-r", "requirements.txt"], stdout="installed"),
         ]
 
         result = run_system_update()
@@ -79,12 +82,31 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
         self.assertEqual(error.exception.stage, "pull")
         self.assertIn("no remote repository", error.exception.stderr)
 
+    @patch("src.components.system_update.subprocess.run")
+    def test_install_failure_returns_install_stage(self, mock_run):
+        mock_run.side_effect = [
+            _completed_process(["git", "status", "--porcelain"], stdout=""),
+            _completed_process(["git", "pull"], stdout="Updating 123..456"),
+            _completed_process(
+                ["python", "-m", "pip", "install", "-r", "requirements.txt"],
+                returncode=1,
+                stderr="ERROR: Could not find a version",
+            ),
+        ]
+
+        with self.assertRaises(SystemUpdateError) as error:
+            run_system_update()
+
+        self.assertEqual(error.exception.stage, "install")
+        self.assertIn("Could not find a version", error.exception.stderr)
+
     @patch("src.components.system_update.subprocess.Popen", side_effect=FileNotFoundError("systemctl"))
     @patch("src.components.system_update.subprocess.run")
     def test_missing_systemctl_raises_restart_error_after_successful_pull(self, mock_run, _mock_popen):
         mock_run.side_effect = [
             _completed_process(["git", "status", "--porcelain"], stdout=""),
             _completed_process(["git", "pull"], stdout="Updating 123..456"),
+            _completed_process(["python", "-m", "pip", "install", "-r", "requirements.txt"], stdout="installed"),
         ]
 
         with self.assertRaises(SystemUpdateError) as error:
@@ -108,6 +130,7 @@ class SystemUpdateServiceTestCase(unittest.TestCase):
         mock_run.side_effect = [
             _completed_process(["git", "status", "--porcelain"], stdout=""),
             _completed_process(["git", "pull"], stdout="Already up to date."),
+            _completed_process(["python", "-m", "pip", "install", "-r", "requirements.txt"], stdout="installed"),
         ]
 
         result = run_system_update()
@@ -138,8 +161,13 @@ class SystemUpdateApiTestCase(unittest.TestCase):
         mock_run_system_update.return_value = {
             "ok": True,
             "pull": {"updated": True, "stdout": "Updating", "stderr": ""},
+            "install": {
+                "command": "python -m pip install -r requirements.txt",
+                "stdout": "installed",
+                "stderr": "",
+            },
             "restart": {"command": "sudo systemctl restart tiktok2instagram", "started": True},
-            "message": "Update pulled. Restart requested.",
+            "message": "Update pulled, dependencies installed. Restart requested.",
         }
 
         response = self.client.post(

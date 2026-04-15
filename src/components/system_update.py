@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import threading
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+REQUIREMENTS_PATH = REPO_ROOT / "requirements.txt"
 RESTART_COMMAND = ["sudo", "systemctl", "restart", "tiktok2instagram"]
 _UPDATE_LOCK = threading.Lock()
 
@@ -123,6 +125,11 @@ def _pull_updated(stdout: str, stderr: str) -> bool:
     return "already up to date" not in combined and "already up-to-date" not in combined
 
 
+def _install_requirements() -> subprocess.CompletedProcess[str]:
+    command = [sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_PATH)]
+    return _run_command(command)
+
+
 def run_system_restart() -> dict:
     restart = _launch_restart()
     return {
@@ -193,18 +200,33 @@ def run_system_update() -> dict:
                 completed_process=pull_result,
             )
 
+        install_result = _install_requirements()
+        if install_result.returncode != 0:
+            _raise_command_error(
+                message="Failed to install Python dependencies from requirements.txt.",
+                stage="install",
+                completed_process=install_result,
+            )
+
         restart = _launch_restart()
-        stdout = _normalize_output(pull_result.stdout)
-        stderr = _normalize_output(pull_result.stderr)
+        pull_stdout = _normalize_output(pull_result.stdout)
+        pull_stderr = _normalize_output(pull_result.stderr)
+        install_stdout = _normalize_output(install_result.stdout)
+        install_stderr = _normalize_output(install_result.stderr)
         return {
             "ok": True,
             "pull": {
-                "updated": _pull_updated(stdout, stderr),
-                "stdout": stdout,
-                "stderr": stderr,
+                "updated": _pull_updated(pull_stdout, pull_stderr),
+                "stdout": pull_stdout,
+                "stderr": pull_stderr,
+            },
+            "install": {
+                "command": f"{sys.executable} -m pip install -r {REQUIREMENTS_PATH}",
+                "stdout": install_stdout,
+                "stderr": install_stderr,
             },
             "restart": restart,
-            "message": "Update pulled. Restart requested.",
+            "message": "Update pulled, dependencies installed. Restart requested.",
         }
     finally:
         _UPDATE_LOCK.release()
