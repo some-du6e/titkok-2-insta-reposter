@@ -107,16 +107,6 @@ function setOperationStatus({ title, detail, state = "working", persistent = tru
   }
 }
 
-function clearOperationStatus() {
-  if (operationHintTimerId !== null) {
-    window.clearTimeout(operationHintTimerId);
-    operationHintTimerId = null;
-  }
-
-  queueOperationStatus.hidden = true;
-  queueOperationStatus.dataset.state = "";
-}
-
 function formatDateTime(value, fallback = "Unknown") {
   if (!value) {
     return fallback;
