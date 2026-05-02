@@ -51,6 +51,11 @@
       </section>
 
       <p id="queue-feedback" class="feedback-banner" hidden></p>
+      <section id="queue-operation-status" class="operation-banner" aria-live="polite" hidden>
+        <div class="operation-banner__eyebrow">Live task</div>
+        <strong id="queue-operation-title">Working</strong>
+        <p id="queue-operation-copy">The queue is processing your request.</p>
+      </section>
 
       <section class="summary-strip" aria-label="Queue metrics">
         <article class="summary-card summary-card--accent">
@@ -286,6 +291,8 @@
         </div>
 
         <a class="queue-card__source" data-field="source-url" target="_blank" rel="noreferrer"></a>
+        <p class="queue-card__meta" data-field="meta"></p>
+        <p class="queue-card__error" data-field="last-error" hidden></p>
 
         <div class="queue-card__actions">
           <button type="button" class="queue-action" data-action="publish"></button>

@@ -3,6 +3,7 @@
 [ ] logintoinsta.py
 [ ] created the app in fb
 [ ] uploadvideo.py
+[ ] add AI caption generation flow with API-key-backed provider wiring
 ### tiktok handling
 
 

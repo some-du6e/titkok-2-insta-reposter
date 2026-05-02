@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import flask
 from dotenv import load_dotenv
+from PIL import Image, UnidentifiedImageError
 
 from src.components import captions as captions_store
 from src.components.captions import CaptionPayloadError
@@ -42,6 +43,21 @@ app = flask.Flask(__name__)
 
 def _json_error(message: str, status_code: int):
     return flask.jsonify({"error": message}), status_code
+
+
+def _save_uploaded_image_as_jpeg(file_storage, destination_path):
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = destination_path.with_name(f"{destination_path.stem}.tmp{destination_path.suffix}")
+    if temporary_path.exists():
+        temporary_path.unlink()
+
+    file_storage.stream.seek(0)
+    with Image.open(file_storage.stream) as image:
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        image.save(temporary_path, format="JPEG", quality=95, optimize=True)
+
+    temporary_path.replace(destination_path)
 
 
 def _parse_iso_datetime(value):
@@ -212,9 +228,11 @@ def upload_cover_image():
     if content_type and not content_type.startswith("image/"):
         return _json_error("cover_image must be an image file", 400)
 
-    destination_path = PROJECT_ROOT / "coverrrr.png"
+    destination_path = PROJECT_ROOT / "coverrrr.jpg"
     try:
-        cover_image.save(destination_path)
+        _save_uploaded_image_as_jpeg(cover_image, destination_path)
+    except UnidentifiedImageError:
+        return _json_error("cover_image must be a valid image file", 400)
     except Exception as e:
         return _json_error(f"Failed to save cover image: {e}", 500)
 

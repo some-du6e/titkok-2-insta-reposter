@@ -4,10 +4,12 @@ import json
 import mimetypes
 import re
 import subprocess
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import requests
+from PIL import Image, UnidentifiedImageError
 
 from src.components.video_logic.render import (
     COVER_IMAGE_PATH,
@@ -367,6 +369,34 @@ def _download_binary(url: str, destination: Path) -> Path:
         raise TikTokDownloadError(f"Failed to download media asset: {exc}") from exc
 
 
+def _download_image_as_jpeg(url: str, destination: Path) -> Path:
+    try:
+        response = requests.get(
+            url,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            headers=REQUEST_HEADERS,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise TikTokDownloadError(f"Failed to download media asset: {exc}") from exc
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = destination.with_name(f"{destination.stem}.tmp{destination.suffix}")
+    if temp_path.exists():
+        temp_path.unlink()
+
+    try:
+        with Image.open(BytesIO(response.content)) as image:
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+            image.save(temp_path, format="JPEG", quality=95, optimize=True)
+    except UnidentifiedImageError as exc:
+        raise TikTokDownloadError("Downloaded cover image is not a valid image") from exc
+
+    temp_path.replace(destination)
+    return destination
+
+
 def _prepare_video_media(url: str, metadata: dict, *, prepend_cover_intro: bool = False) -> dict:
     output_template = str(VIDEOS_DIR / "%(uploader_id|creator|unknown)s__%(id)s.%(ext)s")
     result = subprocess.run(
@@ -498,7 +528,7 @@ def fetch_video_cover_image(url: str) -> Path:
     """Download the cover/thumbnail of any yt-dlp-supported video URL and save it as the cover image.
 
     Fetches video metadata via yt-dlp, selects the best available thumbnail, downloads
-    it, and saves it to ``COVER_IMAGE_PATH`` (``coverrrr.png`` in the project root).
+    it, and saves it to ``COVER_IMAGE_PATH`` (``coverrrr.jpg`` in the project root).
 
     Args:
         url: A publicly accessible video URL (TikTok or any yt-dlp-supported site).
@@ -548,7 +578,7 @@ def fetch_video_cover_image(url: str) -> Path:
         raise TikTokDownloadError("No cover image found for the given video URL")
 
     COVER_IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _download_binary(image_candidates[0], COVER_IMAGE_PATH)
+    _download_image_as_jpeg(image_candidates[0], COVER_IMAGE_PATH)
     return COVER_IMAGE_PATH
 
 

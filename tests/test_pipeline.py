@@ -7,7 +7,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from src.components import queue_store
-from src.components.pipeline import QueuePipelineError, enqueue_tiktok_url, publish_queue_item
+from src.components.pipeline import (
+    CAPTION_TAG_SUFFIX,
+    QueuePipelineError,
+    enqueue_tiktok_url,
+    publish_queue_item,
+)
 from src.components.video_logic.tiktok import TikTokDownloadError
 
 
@@ -51,11 +56,11 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
                 "audio_duration_seconds": None,
                 "rendered_from_photo": False,
                 "cover_intro_applied": True,
-                "cover_intro_source_path": "/tmp/coverrrr.png",
+                "cover_intro_source_path": "/tmp/coverrrr.jpg",
             },
         }
 
-        cover_path = Path(self.temp_dir.name) / "coverrrr.png"
+        cover_path = Path(self.temp_dir.name) / "coverrrr.jpg"
         cover_path.write_bytes(b"image")
         with patch("src.components.pipeline.COVER_IMAGE_PATH", cover_path):
             status, item = enqueue_tiktok_url("https://www.tiktok.com/@creator/video/123")
@@ -101,6 +106,41 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
         self.assertTrue(item["rendered_from_photo"])
         self.assertEqual(item["video_path"], str(video_path.resolve()))
         self.assertEqual(item["source_assets"]["audio_duration_seconds"], 8.4)
+
+    @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
+    @patch("src.components.pipeline.prepare_tiktok_media")
+    def test_enqueue_appends_static_caption_suffix_before_credit(
+        self,
+        mock_prepare_media,
+        _mock_captions,
+    ):
+        video_path = Path(self.temp_dir.name) / "clip.mp4"
+        video_path.write_bytes(b"video")
+        mock_prepare_media.return_value = {
+            "media_kind": "video",
+            "video_path": str(video_path),
+            "video_filename": video_path.name,
+            "download": {
+                "extractor": "yt-dlp",
+                "source_id": "123",
+                "title": "Clip",
+                "source_media_kind": "video",
+                "audio_path": None,
+                "image_path": None,
+                "audio_duration_seconds": None,
+                "rendered_from_photo": False,
+                "cover_intro_applied": False,
+                "cover_intro_source_path": None,
+            },
+        }
+
+        status, item = enqueue_tiktok_url("https://www.tiktok.com/@creator/video/123")
+
+        self.assertEqual(status, "queued")
+        self.assertEqual(
+            item["caption"],
+            f"Caption {CAPTION_TAG_SUFFIX} (📸/tt/creator)",
+        )
 
     @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
     @patch("src.components.pipeline.prepare_tiktok_media")
@@ -165,7 +205,7 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
             },
         }
 
-        missing_cover_path = Path(self.temp_dir.name) / "missing-coverrrr.png"
+        missing_cover_path = Path(self.temp_dir.name) / "missing-coverrrr.jpg"
         with patch("src.components.pipeline.COVER_IMAGE_PATH", missing_cover_path):
             status, item = enqueue_tiktok_url("https://www.tiktok.com/@creator/video/123")
 

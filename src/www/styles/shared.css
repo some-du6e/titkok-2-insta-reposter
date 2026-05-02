@@ -223,7 +223,8 @@ textarea {
 .queue-card,
 .caption-cloud,
 .feedback-banner,
-.queue-empty-state {
+.queue-empty-state,
+.operation-banner {
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -265,7 +266,8 @@ textarea {
 }
 
 .feedback-banner,
-.queue-empty-state {
+.queue-empty-state,
+.operation-banner {
   margin-bottom: 24px;
   padding: 16px 18px;
 }
@@ -273,6 +275,44 @@ textarea {
 .feedback-banner[data-state="error"] {
   border-color: rgba(155, 76, 64, 0.28);
   color: #7a3328;
+}
+
+.operation-banner {
+  display: grid;
+  gap: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(245, 239, 231, 0.94)),
+    var(--surface);
+}
+
+.operation-banner__eyebrow {
+  color: var(--accent-strong);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.operation-banner strong {
+  font-size: 1.1rem;
+  line-height: 1.15;
+}
+
+.operation-banner p {
+  margin: 0;
+  color: var(--page-ink-soft);
+}
+
+.operation-banner[data-state="working"] {
+  border-color: rgba(73, 106, 86, 0.24);
+}
+
+.operation-banner[data-state="success"] {
+  border-color: rgba(68, 110, 79, 0.24);
+}
+
+.operation-banner[data-state="error"] {
+  border-color: rgba(155, 76, 64, 0.24);
 }
 
 .summary-strip {

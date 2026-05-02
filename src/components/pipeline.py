@@ -29,7 +29,8 @@ class QueueValidationError(QueuePipelineError):
 
 
 PUBLISH_LOCK = threading.RLock()
-COVER_IMAGE_PATH = queue_store.PROJECT_ROOT / "coverrrr.png"
+COVER_IMAGE_PATH = queue_store.PROJECT_ROOT / "coverrrr.jpg"
+CAPTION_TAG_SUFFIX = "🌱✨🇯🇵👉🇭🇷🙈💧🇵🇱🇸🇬🌳🌍☀️🇺🇸 #japao #inovacao #sustentabilidade #tecnologia"
 
 
 def _now() -> datetime:
@@ -49,6 +50,9 @@ def _choose_caption() -> str:
 
 def _build_caption(url: str) -> str:
     caption = _choose_caption()
+    if not caption.endswith(CAPTION_TAG_SUFFIX):
+        caption = f"{caption} {CAPTION_TAG_SUFFIX}"
+
     username = extract_tiktok_username(url)
     if not username:
         return caption

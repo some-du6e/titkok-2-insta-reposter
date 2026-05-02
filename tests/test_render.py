@@ -246,7 +246,7 @@ class RenderHelpersTestCase(unittest.TestCase):
     ):
         with tempfile.TemporaryDirectory() as temp_dir:
             video_path = Path(temp_dir) / "input.mp4"
-            cover_path = Path(temp_dir) / "coverrrr.png"
+            cover_path = Path(temp_dir) / "coverrrr.jpg"
             output_path = Path(temp_dir) / "output.mp4"
             video_path.write_bytes(b"video")
             cover_path.write_bytes(b"image")
@@ -281,7 +281,7 @@ class RenderHelpersTestCase(unittest.TestCase):
     ):
         with tempfile.TemporaryDirectory() as temp_dir:
             video_path = Path(temp_dir) / "input.mp4"
-            cover_path = Path(temp_dir) / "coverrrr.png"
+            cover_path = Path(temp_dir) / "coverrrr.jpg"
             output_path = Path(temp_dir) / "output.mp4"
             video_path.write_bytes(b"video")
             cover_path.write_bytes(b"image")

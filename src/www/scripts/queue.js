@@ -4,6 +4,9 @@ const queueReadyCount = document.querySelector("#queue-ready-count");
 const queueSummaryCopy = document.querySelector("#queue-summary-copy");
 const queueEmptyState = document.querySelector("#queue-empty-state");
 const queueFeedback = document.querySelector("#queue-feedback");
+const queueOperationStatus = document.querySelector("#queue-operation-status");
+const queueOperationTitle = document.querySelector("#queue-operation-title");
+const queueOperationCopy = document.querySelector("#queue-operation-copy");
 const queueStatReady = document.querySelector("#queue-stat-ready");
 const queueStatPublishing = document.querySelector("#queue-stat-publishing");
 const queueStatFailed = document.querySelector("#queue-stat-failed");
@@ -47,6 +50,9 @@ const PUBLIC_COLLECTION_TEST_API_URL = "/api/public-collection/test";
 const PUBLIC_COLLECTION_SYNC_API_URL = "/api/public-collection/sync";
 const HIDDEN_PUBLISHED_STORAGE_KEY = "tt2ig-hidden-published-ids";
 const hiddenPublishedIds = new Set(loadHiddenPublishedIds());
+const activeQueueOperations = new Set();
+
+let operationHintTimerId = null;
 
 function loadHiddenPublishedIds() {
   try {
@@ -82,6 +88,35 @@ function setFeedback(message, isError = false) {
   queueFeedback.dataset.state = isError ? "error" : "info";
 }
 
+function setOperationStatus({ title, detail, state = "working", persistent = true }) {
+  if (operationHintTimerId !== null) {
+    window.clearTimeout(operationHintTimerId);
+    operationHintTimerId = null;
+  }
+
+  queueOperationStatus.hidden = false;
+  queueOperationStatus.dataset.state = state;
+  queueOperationTitle.textContent = title;
+  queueOperationCopy.textContent = detail;
+
+  if (!persistent) {
+    operationHintTimerId = window.setTimeout(() => {
+      queueOperationStatus.hidden = true;
+      queueOperationStatus.dataset.state = "";
+    }, 3200);
+  }
+}
+
+function clearOperationStatus() {
+  if (operationHintTimerId !== null) {
+    window.clearTimeout(operationHintTimerId);
+    operationHintTimerId = null;
+  }
+
+  queueOperationStatus.hidden = true;
+  queueOperationStatus.dataset.state = "";
+}
+
 function formatDateTime(value, fallback = "Unknown") {
   if (!value) {
     return fallback;
@@ -93,6 +128,34 @@ function formatDateTime(value, fallback = "Unknown") {
   }
 
   return date.toLocaleString();
+}
+
+function formatOperationLabel(endpoint) {
+  if (endpoint === "retry") {
+    return "Retry";
+  }
+
+  return "Publish";
+}
+
+function setOperationBusyMessage(actionLabel, title) {
+  setOperationStatus({
+    title: `${actionLabel} in progress`,
+    detail: `${title} is being processed now. This request can take a while while media is prepared and Instagram responds.`,
+  });
+}
+
+function scheduleSlowOperationHint(actionLabel, title) {
+  if (operationHintTimerId !== null) {
+    window.clearTimeout(operationHintTimerId);
+  }
+
+  operationHintTimerId = window.setTimeout(() => {
+    setOperationStatus({
+      title: `${actionLabel} still running`,
+      detail: `${title} has not finished yet. The request is still open; wait for a success or failure message before trying again.`,
+    });
+  }, 4500);
 }
 
 function getStatusLabel(status) {
@@ -141,6 +204,10 @@ function getActionConfig(status) {
   }
 
   return { label: "Published", endpoint: "", disabled: true };
+}
+
+function updateQueueBusyState() {
+  queueGrid.setAttribute("aria-busy", activeQueueOperations.size > 0 ? "true" : "false");
 }
 
 function renderRuntime(settings = {}) {
@@ -212,16 +279,25 @@ function renderQueue(items) {
     const action = getActionConfig(item.status);
     const title = item.download?.title || item.video_filename || "Queued post";
     const sourceLabel = getMediaSourceLabel(item);
+    const updatedAt = formatDateTime(item.updated_at || item.created_at, "Unknown");
 
     card.dataset.status = item.status || "queued";
+    card.dataset.itemId = item.id;
     fragment.querySelector("[data-field='title']").textContent = title;
     fragment.querySelector("[data-field='fallback-title']").textContent = title;
     fragment.querySelector("[data-field='fallback-status']").textContent = `${sourceLabel} • ${statusLabel}`;
     fragment.querySelector("[data-field='status']").textContent = statusLabel;
+    fragment.querySelector("[data-field='meta']").textContent = `Last updated ${updatedAt}`;
 
     const sourceLink = fragment.querySelector("[data-field='source-url']");
     sourceLink.href = item.source_url;
     sourceLink.textContent = `${sourceLabel} • ${formatSourceLabel(item.source_url)}`;
+
+    const lastError = fragment.querySelector("[data-field='last-error']");
+    if (item.last_error) {
+      lastError.hidden = false;
+      lastError.textContent = item.last_error;
+    }
 
     statusPill.dataset.status = item.status || "queued";
     actionButton.textContent = action.label;
@@ -242,6 +318,50 @@ function renderQueue(items) {
 
     queueGrid.append(fragment);
   });
+}
+
+function markQueueCardBusy(itemId, isBusy, actionLabel = "Working") {
+  const card = queueGrid.querySelector(`[data-item-id="${itemId}"]`);
+  if (!card) {
+    return;
+  }
+
+  card.classList.toggle("is-busy", isBusy);
+
+  const actionButton = card.querySelector("[data-action='publish']");
+  if (actionButton) {
+    if (isBusy) {
+      actionButton.dataset.previousDisabled = actionButton.disabled ? "true" : "false";
+      actionButton.dataset.previousLabel = actionButton.textContent;
+      actionButton.disabled = true;
+      actionButton.textContent = `${actionLabel}...`;
+    } else if (actionButton.dataset.previousLabel) {
+      actionButton.disabled = actionButton.dataset.previousDisabled === "true";
+      actionButton.textContent = actionButton.dataset.previousLabel;
+      delete actionButton.dataset.previousDisabled;
+      delete actionButton.dataset.previousLabel;
+    }
+  }
+
+  const statusPill = card.querySelector("[data-field='status-pill']");
+  const statusText = card.querySelector("[data-field='status']");
+  if (statusPill && statusText) {
+    if (isBusy) {
+      statusPill.dataset.previousStatus = statusPill.dataset.status || "";
+      statusText.dataset.previousText = statusText.textContent;
+      statusPill.dataset.status = "working";
+      statusText.textContent = `${actionLabel}...`;
+    } else {
+      if (statusPill.dataset.previousStatus) {
+        statusPill.dataset.status = statusPill.dataset.previousStatus;
+        delete statusPill.dataset.previousStatus;
+      }
+      if (statusText.dataset.previousText) {
+        statusText.textContent = statusText.dataset.previousText;
+        delete statusText.dataset.previousText;
+      }
+    }
+  }
 }
 
 async function loadQueue({ preserveFeedback = false } = {}) {
@@ -272,6 +392,16 @@ async function runQueueAction(button) {
     return;
   }
 
+  const card = button.closest(".queue-card");
+  const title = card?.querySelector("[data-field='title']")?.textContent || "Queue item";
+  const actionLabel = formatOperationLabel(endpoint);
+
+  activeQueueOperations.add(id);
+  updateQueueBusyState();
+  setOperationBusyMessage(actionLabel, title);
+  scheduleSlowOperationHint(actionLabel, title);
+  markQueueCardBusy(id, true, actionLabel);
+
   button.disabled = true;
   const previousText = button.textContent;
   button.textContent = endpoint === "retry" ? "Retrying..." : "Publishing...";
@@ -288,19 +418,40 @@ async function runQueueAction(button) {
     const resultStatus = data.item?.status;
     if (resultStatus === "failed") {
       setFeedback("Publish failed. Review the item error and retry when ready.", true);
+      setOperationStatus({
+        title: `${actionLabel} failed`,
+        detail: `${title} did not pass. The latest error is shown on the card so you can decide whether to retry again.`,
+        state: "error",
+      });
     } else {
       if (resultStatus === "published" && data.item?.id) {
         hiddenPublishedIds.add(data.item.id);
         saveHiddenPublishedIds();
       }
       setFeedback("Queue updated.");
+      setOperationStatus({
+        title: `${actionLabel} finished`,
+        detail: resultStatus === "published"
+          ? `${title} published successfully.`
+          : `${title} completed and the queue state has been refreshed.`,
+        state: "success",
+      });
     }
 
     await loadQueue({ preserveFeedback: true });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: `${actionLabel} failed`,
+      detail: `${title} could not be processed: ${error.message}`,
+      state: "error",
+    });
     button.disabled = false;
     button.textContent = previousText;
+  } finally {
+    activeQueueOperations.delete(id);
+    updateQueueBusyState();
+    markQueueCardBusy(id, false, actionLabel);
   }
 }
 
@@ -314,6 +465,10 @@ async function saveQueueSettings() {
   queueSettingsSaveButton.disabled = true;
   const previousText = queueSettingsSaveButton.textContent;
   queueSettingsSaveButton.textContent = "Saving...";
+  setOperationStatus({
+    title: "Saving queue settings",
+    detail: "Updating scheduler controls and refreshing the runtime state.",
+  });
 
   try {
     const response = await fetch(QUEUE_SETTINGS_API_URL, {
@@ -334,9 +489,20 @@ async function saveQueueSettings() {
 
     renderRuntime(data.settings || {});
     setFeedback("Queue settings saved.");
+    setOperationStatus({
+      title: "Queue settings saved",
+      detail: "Scheduler settings are stored and the latest runtime state is on screen.",
+      state: "success",
+      persistent: false,
+    });
     await loadQueue({ preserveFeedback: true });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Queue settings failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     queueSettingsSaveButton.disabled = false;
     queueSettingsSaveButton.textContent = previousText;
@@ -353,6 +519,10 @@ async function uploadCoverImage() {
   coverImageUploadButton.disabled = true;
   const previousText = coverImageUploadButton.textContent;
   coverImageUploadButton.textContent = "Uploading...";
+  setOperationStatus({
+    title: "Uploading cover image",
+    detail: "Saving the new global cover intro frame.",
+  });
 
   try {
     const formData = new FormData();
@@ -369,8 +539,19 @@ async function uploadCoverImage() {
 
     coverImageFileInput.value = "";
     setFeedback(`Cover image uploaded: ${data.filename}`);
+    setOperationStatus({
+      title: "Cover image uploaded",
+      detail: `${data.filename} is now the active global cover intro frame.`,
+      state: "success",
+      persistent: false,
+    });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Cover upload failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     coverImageUploadButton.disabled = false;
     coverImageUploadButton.textContent = previousText;
@@ -387,6 +568,10 @@ async function fetchCoverFromUrl() {
   coverImageFromUrlButton.disabled = true;
   const previousText = coverImageFromUrlButton.textContent;
   coverImageFromUrlButton.textContent = "Fetching...";
+  setOperationStatus({
+    title: "Fetching video cover",
+    detail: "Pulling a cover image from the TikTok URL you entered.",
+  });
 
   try {
     const response = await fetch(COVER_IMAGE_FROM_URL_API_URL, {
@@ -401,8 +586,19 @@ async function fetchCoverFromUrl() {
 
     coverImageUrlInput.value = "";
     setFeedback(`Cover image saved from video: ${data.filename}`);
+    setOperationStatus({
+      title: "Video cover saved",
+      detail: `${data.filename} is ready for the cover intro frame.`,
+      state: "success",
+      persistent: false,
+    });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Video cover fetch failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     coverImageFromUrlButton.disabled = false;
     coverImageFromUrlButton.textContent = previousText;
@@ -419,6 +615,10 @@ async function savePublicCollectionSettings() {
   publicCollectionSaveButton.disabled = true;
   const previousText = publicCollectionSaveButton.textContent;
   publicCollectionSaveButton.textContent = "Saving...";
+  setOperationStatus({
+    title: "Saving collection monitor",
+    detail: "Updating the public collection URL and poll cadence.",
+  });
 
   try {
     const response = await fetch(QUEUE_SETTINGS_API_URL, {
@@ -438,9 +638,20 @@ async function savePublicCollectionSettings() {
     }
 
     setFeedback("Collection monitor settings saved.");
+    setOperationStatus({
+      title: "Collection monitor saved",
+      detail: "The monitor settings are stored and the latest state is being refreshed.",
+      state: "success",
+      persistent: false,
+    });
     await loadQueue({ preserveFeedback: true });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Collection monitor save failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     publicCollectionSaveButton.disabled = false;
     publicCollectionSaveButton.textContent = previousText;
@@ -457,6 +668,10 @@ async function testPublicCollection() {
   publicCollectionTestButton.disabled = true;
   const previousText = publicCollectionTestButton.textContent;
   publicCollectionTestButton.textContent = "Testing...";
+  setOperationStatus({
+    title: "Testing collection URL",
+    detail: "Checking whether the collection is reachable and how many items are visible.",
+  });
 
   try {
     const response = await fetch(PUBLIC_COLLECTION_TEST_API_URL, {
@@ -474,6 +689,12 @@ async function testPublicCollection() {
     setFeedback(
       `Collection reachable. Found ${data.items_found} items using ${data.extract_strategy}.`,
     );
+    setOperationStatus({
+      title: "Collection test finished",
+      detail: `Found ${data.items_found} items using ${data.extract_strategy}.`,
+      state: "success",
+      persistent: false,
+    });
     renderPublicCollectionStatus({
       ...data,
       enabled: publicCollectionEnabledInput.checked,
@@ -488,6 +709,11 @@ async function testPublicCollection() {
     });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Collection test failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     publicCollectionTestButton.disabled = false;
     publicCollectionTestButton.textContent = previousText;
@@ -498,6 +724,10 @@ async function syncPublicCollection() {
   publicCollectionSyncButton.disabled = true;
   const previousText = publicCollectionSyncButton.textContent;
   publicCollectionSyncButton.textContent = "Syncing...";
+  setOperationStatus({
+    title: "Syncing collection",
+    detail: "Checking the public collection and queueing any newly discovered items.",
+  });
 
   try {
     const response = await fetch(PUBLIC_COLLECTION_SYNC_API_URL, {
@@ -516,15 +746,32 @@ async function syncPublicCollection() {
 
     if (data.baseline_seeded) {
       setFeedback(`Baseline seeded from ${data.items_found} collection items.`);
+      setOperationStatus({
+        title: "Collection sync finished",
+        detail: `Seeded the baseline from ${data.items_found} collection items.`,
+        state: "success",
+        persistent: false,
+      });
     } else {
       setFeedback(
         `Collection sync complete. Found ${data.items_found}, queued ${data.items_queued}, duplicates ${data.duplicates}.`,
       );
+      setOperationStatus({
+        title: "Collection sync finished",
+        detail: `Found ${data.items_found}, queued ${data.items_queued}, duplicates ${data.duplicates}.`,
+        state: "success",
+        persistent: false,
+      });
     }
 
     await loadQueue({ preserveFeedback: true });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Collection sync failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     publicCollectionSyncButton.disabled = false;
     publicCollectionSyncButton.textContent = previousText;
@@ -535,6 +782,10 @@ async function runNextQueuedItem() {
   queueRunNextButton.disabled = true;
   const previousText = queueRunNextButton.textContent;
   queueRunNextButton.textContent = "Running...";
+  setOperationStatus({
+    title: "Running next queued item",
+    detail: "Processing the oldest ready post now. This can take a while if media needs prep or Instagram is slow.",
+  });
 
   try {
     const response = await fetch(QUEUE_RUN_NEXT_API_URL, {
@@ -548,19 +799,47 @@ async function runNextQueuedItem() {
     const resultItem = data.item;
     if (!resultItem) {
       setFeedback(data.message || "No queued items were ready to publish.");
+      setOperationStatus({
+        title: "Nothing ran",
+        detail: data.message || "No queued items were ready to publish.",
+        state: "success",
+        persistent: false,
+      });
     } else if (resultItem.status === "failed") {
       setFeedback("Publish failed. Review the item error and retry when ready.", true);
+      setOperationStatus({
+        title: "Run failed",
+        detail: "The queued item failed. Refresh completed and the latest error is shown in the queue.",
+        state: "error",
+      });
     } else if (resultItem.status === "published") {
       hiddenPublishedIds.add(resultItem.id);
       saveHiddenPublishedIds();
       setFeedback("Queued post published.");
+      setOperationStatus({
+        title: "Run finished",
+        detail: "The queued item published successfully.",
+        state: "success",
+        persistent: false,
+      });
     } else {
       setFeedback("Queue updated.");
+      setOperationStatus({
+        title: "Run finished",
+        detail: "The queue state was refreshed after the manual run.",
+        state: "success",
+        persistent: false,
+      });
     }
 
     await loadQueue({ preserveFeedback: true });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Run failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     queueRunNextButton.disabled = false;
     queueRunNextButton.textContent = previousText;
@@ -571,6 +850,10 @@ async function runSystemUpdate() {
   systemUpdateButton.disabled = true;
   const previousText = systemUpdateButton.textContent;
   systemUpdateButton.textContent = "Updating...";
+  setOperationStatus({
+    title: "Updating app",
+    detail: "Pulling the latest code and applying the update routine.",
+  });
 
   try {
     const response = await fetch(SYSTEM_UPDATE_API_URL, {
@@ -586,8 +869,18 @@ async function runSystemUpdate() {
     }
 
     setFeedback(data.message || "Update pulled. Restart requested.");
+    setOperationStatus({
+      title: "Update finished",
+      detail: data.message || "The update completed and a restart was requested.",
+      state: "success",
+    });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Update failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     systemUpdateButton.disabled = false;
     systemUpdateButton.textContent = previousText;
@@ -598,6 +891,10 @@ async function runSystemRestart() {
   systemRestartButton.disabled = true;
   const previousText = systemRestartButton.textContent;
   systemRestartButton.textContent = "Restarting...";
+  setOperationStatus({
+    title: "Restarting app",
+    detail: "The restart request is being sent now.",
+  });
 
   try {
     const response = await fetch(SYSTEM_RESTART_API_URL, {
@@ -613,8 +910,18 @@ async function runSystemRestart() {
     }
 
     setFeedback(data.message || "Restart requested.");
+    setOperationStatus({
+      title: "Restart requested",
+      detail: data.message || "The restart command was accepted.",
+      state: "success",
+    });
   } catch (error) {
     setFeedback(error.message, true);
+    setOperationStatus({
+      title: "Restart failed",
+      detail: error.message,
+      state: "error",
+    });
   } finally {
     systemRestartButton.disabled = false;
     systemRestartButton.textContent = previousText;
@@ -674,6 +981,11 @@ coverImageFromUrlButton.addEventListener("click", () => {
 
 loadQueue().catch((error) => {
   setFeedback(error.message, true);
+  setOperationStatus({
+    title: "Queue load failed",
+    detail: error.message,
+    state: "error",
+  });
   renderRuntime({});
   renderQueue([]);
 });
