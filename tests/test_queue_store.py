@@ -23,10 +23,24 @@ class QueueStoreSettingsTestCase(unittest.TestCase):
         settings = queue_store.normalize_settings(None, persist_existing_schedule=False)
 
         self.assertFalse(settings["prependCoverIntroEnabled"])
+        self.assertIsNone(settings["instagramPublishBlockedUntil"])
+        self.assertEqual(settings["instagramPublishBlockReason"], "")
 
     def test_update_queue_settings_rejects_non_boolean_cover_intro_flag(self):
         with self.assertRaises(QueueValidationError):
             update_queue_settings({"prependCoverIntroEnabled": "yes"})
+
+    def test_normalize_settings_preserves_instagram_publish_block(self):
+        settings = queue_store.normalize_settings(
+            {
+                "instagramPublishBlockedUntil": "2026-05-02T12:00:00+00:00",
+                "instagramPublishBlockReason": "Instagram publish limit reached.",
+            },
+            persist_existing_schedule=False,
+        )
+
+        self.assertEqual(settings["instagramPublishBlockedUntil"], "2026-05-02T12:00:00+00:00")
+        self.assertEqual(settings["instagramPublishBlockReason"], "Instagram publish limit reached.")
 
 
 if __name__ == "__main__":

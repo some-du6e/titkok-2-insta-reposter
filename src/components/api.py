@@ -45,6 +45,10 @@ def _json_error(message: str, status_code: int):
     return flask.jsonify({"error": message}), status_code
 
 
+def _is_instagram_publish_limit_message(message: str | None) -> bool:
+    return isinstance(message, str) and "Instagram publish limit reached" in message
+
+
 def _save_uploaded_image_as_jpeg(file_storage, destination_path):
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = destination_path.with_name(f"{destination_path.stem}.tmp{destination_path.suffix}")
@@ -318,6 +322,8 @@ def run_next_queue_item():
         item = result.get("item")
         if item and item.get("status") == "failed":
             status_code = 500
+        elif item and item.get("status") == "queued" and _is_instagram_publish_limit_message(item.get("last_error")):
+            status_code = 429
         return flask.jsonify(result), status_code
     except QueueValidationError as e:
         return _json_error(str(e), 409)
@@ -452,6 +458,8 @@ def publish_queue(item_id):
     try:
         item = publish_queue_item(item_id)
         status_code = 200 if item.get("status") == "published" else 500
+        if item.get("status") == "queued" and _is_instagram_publish_limit_message(item.get("last_error")):
+            status_code = 429
         return flask.jsonify({"item": item}), status_code
     except QueueValidationError as e:
         message = str(e)
@@ -474,6 +482,8 @@ def retry_queue(item_id):
     try:
         item = retry_queue_item(item_id)
         status_code = 200 if item.get("status") == "published" else 500
+        if item.get("status") == "queued" and _is_instagram_publish_limit_message(item.get("last_error")):
+            status_code = 429
         return flask.jsonify({"item": item}), status_code
     except QueueValidationError as e:
         return _json_error(str(e), 409)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,6 +12,7 @@ from src.components.pipeline import (
     CAPTION_TAG_SUFFIX,
     QueuePipelineError,
     enqueue_tiktok_url,
+    publish_next_queued_item,
     publish_queue_item,
 )
 from src.components.video_logic.tiktok import TikTokDownloadError
@@ -31,6 +33,47 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
         settings = queue_store.normalize_settings(None, persist_existing_schedule=False)
         settings.update(overrides)
         queue_store.save_settings(settings)
+
+    def _append_publishable_item(self, *, item_id="item-1", status="queued"):
+        video_path = Path(self.temp_dir.name) / f"{item_id}.mp4"
+        video_path.write_bytes(b"video")
+        queue_store.append_item(
+            {
+                "id": item_id,
+                "source_url": f"https://www.tiktok.com/@creator/video/{item_id}",
+                "source_url_normalized": f"https://www.tiktok.com/@creator/video/{item_id}",
+                "source_kind": "manual",
+                "source_id": item_id,
+                "video_path": str(video_path.resolve()),
+                "video_filename": video_path.name,
+                "source_media_kind": "video",
+                "rendered_from_photo": False,
+                "source_assets": {
+                    "image_path": None,
+                    "audio_path": None,
+                    "audio_duration_seconds": None,
+                },
+                "caption": "Caption",
+                "media_type": "REELS",
+                "status": status,
+                "created_at": "2026-03-24T00:00:00+00:00",
+                "updated_at": "2026-03-24T00:00:00+00:00",
+                "published_at": None,
+                "instagram_media_id": None,
+                "container_id": None,
+                "download": {"title": "Queued post", "rendered_from_photo": False},
+                "preview": {
+                    "status": "missing",
+                    "image_path": None,
+                    "updated_at": "2026-03-24T00:00:00+00:00",
+                    "width": None,
+                    "height": None,
+                    "error": None,
+                },
+                "last_error": None,
+            }
+        )
+        return video_path
 
     @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
     @patch("src.components.pipeline.prepare_tiktok_media")
@@ -318,6 +361,56 @@ class PipelinePhotoSupportTestCase(unittest.TestCase):
         self.assertEqual(result["status"], "failed")
         self.assertIn("Instagram media publish failed", result["last_error"])
         mock_print_exc.assert_called_once()
+
+    @patch("src.components.pipeline.InstagramUploader")
+    def test_publish_skips_upload_when_instagram_publish_block_is_active(self, mock_uploader):
+        self._append_publishable_item(item_id="blocked-item")
+        self._save_settings(
+            instagramPublishBlockedUntil="2026-05-02T12:00:00+00:00",
+            instagramPublishBlockReason="Instagram publish limit reached. Waiting until 2026-05-02T12:00:00+00:00 before trying again.",
+        )
+
+        with patch("src.components.pipeline._now", return_value=datetime(2026, 5, 2, 11, 30, tzinfo=timezone.utc)):
+            result = publish_queue_item("blocked-item")
+
+        self.assertEqual(result["status"], "queued")
+        self.assertIn("Instagram publish limit reached", result["last_error"])
+        mock_uploader.return_value.upload_video.assert_not_called()
+
+    @patch("src.components.pipeline.InstagramUploader")
+    def test_publish_limit_error_sets_one_hour_block_and_keeps_item_queued(self, mock_uploader):
+        self._append_publishable_item(item_id="quota-item")
+        mock_uploader.return_value.upload_video.side_effect = RuntimeError(
+            "Instagram media publish failed: status=400 body={'error': {'message': 'User is performing too many actions', 'code': 9, 'error_subcode': 2207042}}"
+        )
+
+        now = datetime(2026, 5, 2, 11, 0, tzinfo=timezone.utc)
+        with patch("src.components.pipeline._now", return_value=now):
+            result = publish_queue_item("quota-item")
+
+        settings = queue_store.get_settings()
+        self.assertEqual(result["status"], "queued")
+        self.assertIn("Instagram publish limit reached", result["last_error"])
+        self.assertEqual(settings["instagramPublishBlockedUntil"], "2026-05-02T12:00:00+00:00")
+        self.assertIn("Instagram publish limit reached", settings["instagramPublishBlockReason"])
+
+    @patch("src.components.pipeline.InstagramUploader")
+    def test_auto_publish_records_blocked_result_and_schedules_after_cooldown(self, mock_uploader):
+        self._append_publishable_item(item_id="auto-quota-item")
+        self._save_settings(auto_post_enabled=True, auto_post_interval_minutes=15)
+        mock_uploader.return_value.upload_video.side_effect = RuntimeError(
+            "Instagram media publish failed: status=400 body={'error': {'code': 9, 'error_subcode': 2207042}}"
+        )
+
+        now = datetime(2026, 5, 2, 11, 0, tzinfo=timezone.utc)
+        with patch("src.components.pipeline._now", return_value=now):
+            result = publish_next_queued_item(is_auto=True)
+
+        settings = queue_store.get_settings()
+        self.assertTrue(result["attempted"])
+        self.assertEqual(result["item"]["status"], "queued")
+        self.assertEqual(settings["last_auto_post_result"]["status"], "blocked")
+        self.assertEqual(settings["next_auto_post_at"], "2026-05-02T12:00:00+00:00")
 
     @patch("src.components.pipeline.captions_store.load_captions", return_value=["Caption"])
     @patch("src.components.pipeline.prepare_tiktok_media", side_effect=TikTokDownloadError("Photo post image is missing"))

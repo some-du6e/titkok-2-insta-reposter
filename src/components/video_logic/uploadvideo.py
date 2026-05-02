@@ -158,7 +158,7 @@ class InstagramUploader:
     
     def check_rate_limit(self):
         """Check your current content publishing rate limit."""
-        from api import GRAPH_API_URL
+        from src.components.video_logic.api import GRAPH_API_URL
         
         endpoint = f"{GRAPH_API_URL}/{self.account_id}/content_publishing_limit"
         params = {

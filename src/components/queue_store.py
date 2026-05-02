@@ -149,6 +149,8 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
     public_collection_last_extract_strategy = "none"
     public_collection_last_checked_at = None
     prepend_cover_intro_enabled = DEFAULT_PREPEND_COVER_INTRO_ENABLED
+    instagram_publish_blocked_until = None
+    instagram_publish_block_reason = ""
 
     if isinstance(raw, dict):
         auto_post_enabled = _parse_bool(raw.get("auto_post_enabled"), auto_post_enabled)
@@ -180,10 +182,13 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
             raw.get("prependCoverIntroEnabled"),
             prepend_cover_intro_enabled,
         )
+        instagram_publish_blocked_until = raw.get("instagramPublishBlockedUntil")
+        instagram_publish_block_reason = raw.get("instagramPublishBlockReason", instagram_publish_block_reason)
 
     parsed_next = _parse_iso(next_auto_post_at)
     parsed_last_attempt = _parse_iso(last_auto_post_attempt_at)
     parsed_public_checked_at = _parse_iso(public_collection_last_checked_at)
+    parsed_instagram_blocked_until = _parse_iso(instagram_publish_blocked_until)
 
     if auto_post_enabled:
         if parsed_next is None:
@@ -224,6 +229,9 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
     if not isinstance(public_collection_last_extract_strategy, str) or not public_collection_last_extract_strategy.strip():
         public_collection_last_extract_strategy = "none"
 
+    if not isinstance(instagram_publish_block_reason, str):
+        instagram_publish_block_reason = ""
+
     return {
         "auto_post_enabled": auto_post_enabled,
         "auto_post_interval_minutes": interval_minutes,
@@ -242,6 +250,8 @@ def normalize_settings(raw, *, persist_existing_schedule: bool = True) -> dict:
         "publicCollectionLastExtractStrategy": public_collection_last_extract_strategy,
         "publicCollectionLastCheckedAt": parsed_public_checked_at.isoformat() if parsed_public_checked_at else None,
         "prependCoverIntroEnabled": prepend_cover_intro_enabled,
+        "instagramPublishBlockedUntil": parsed_instagram_blocked_until.isoformat() if parsed_instagram_blocked_until else None,
+        "instagramPublishBlockReason": instagram_publish_block_reason,
     }
 
 

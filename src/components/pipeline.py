@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import traceback
 
@@ -31,6 +31,11 @@ class QueueValidationError(QueuePipelineError):
 PUBLISH_LOCK = threading.RLock()
 COVER_IMAGE_PATH = queue_store.PROJECT_ROOT / "coverrrr.jpg"
 CAPTION_TAG_SUFFIX = "🌱✨🇯🇵👉🇭🇷🙈💧🇵🇱🇸🇬🌳🌍☀️🇺🇸 #japao #inovacao #sustentabilidade #tecnologia"
+INSTAGRAM_PUBLISH_LIMIT_ERROR_SUBCODE = "2207042"
+INSTAGRAM_PUBLISH_LIMIT_COOLDOWN = timedelta(hours=1)
+INSTAGRAM_PUBLISH_LIMIT_MESSAGE = (
+    "Instagram publish limit reached. Waiting until {blocked_until} before trying again."
+)
 
 
 def _now() -> datetime:
@@ -67,6 +72,69 @@ def _build_caption(url: str) -> str:
 def _mark_item(item_id: str, **updates) -> dict:
     updates["updated_at"] = _now_iso()
     return queue_store.update_item(item_id, updates)
+
+
+def _parse_iso(value: str | None) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _format_instagram_publish_limit_message(blocked_until: datetime) -> str:
+    return INSTAGRAM_PUBLISH_LIMIT_MESSAGE.format(blocked_until=blocked_until.isoformat())
+
+
+def _get_active_instagram_publish_block(now: datetime | None = None) -> tuple[datetime, str] | None:
+    settings = queue_store.get_settings()
+    blocked_until = _parse_iso(settings.get("instagramPublishBlockedUntil"))
+    if blocked_until is None:
+        return None
+
+    current_time = now or _now()
+    if blocked_until <= current_time:
+        queue_store.update_settings(
+            {
+                "instagramPublishBlockedUntil": None,
+                "instagramPublishBlockReason": "",
+            }
+        )
+        return None
+
+    reason = settings.get("instagramPublishBlockReason") or _format_instagram_publish_limit_message(blocked_until)
+    return blocked_until, reason
+
+
+def _set_instagram_publish_limit_block(now: datetime | None = None) -> tuple[datetime, str]:
+    blocked_until = (now or _now()) + INSTAGRAM_PUBLISH_LIMIT_COOLDOWN
+    reason = _format_instagram_publish_limit_message(blocked_until)
+    queue_store.update_settings(
+        {
+            "instagramPublishBlockedUntil": blocked_until.isoformat(),
+            "instagramPublishBlockReason": reason,
+        }
+    )
+    return blocked_until, reason
+
+
+def _is_instagram_publish_limit_error(exc: Exception) -> bool:
+    message = str(exc)
+    return (
+        "Instagram media publish failed" in message
+        and (
+            INSTAGRAM_PUBLISH_LIMIT_ERROR_SUBCODE in message
+            or "content publishing" in message.lower()
+            or "publish limit" in message.lower()
+            or "demasiadas acciones" in message.lower()
+            or "límite de publicaciones" in message.lower()
+            or "limite de publicaciones" in message.lower()
+        )
+    )
 
 
 def _resolve_prepend_cover_intro_enabled() -> bool:
@@ -106,6 +174,11 @@ def _schedule_next_auto_post(now: datetime | None = None) -> dict:
     if not settings.get("auto_post_enabled"):
         return settings
 
+    block = _get_active_instagram_publish_block(now=now)
+    if block is not None:
+        next_run = block[0].isoformat()
+        return queue_store.update_settings({"next_auto_post_at": next_run})
+
     next_run = queue_store.build_next_auto_post_at(
         settings.get("auto_post_interval_minutes", queue_store.DEFAULT_AUTO_POST_INTERVAL_MINUTES),
         now=now,
@@ -144,6 +217,12 @@ def _publish_selected_item(item: dict) -> dict:
     if not video_path.exists():
         return _mark_item(item_id, status="failed", last_error="Queued video file is missing")
 
+    block = _get_active_instagram_publish_block()
+    if block is not None:
+        _blocked_until, reason = block
+        print(f"[queue.publish] Skipping publish for item={item_id}: {reason}")
+        return _mark_item(item_id, status="queued", last_error=reason)
+
     _mark_item(item_id, status="publishing", last_error=None)
     print(
         f"[queue.publish] Starting publish for item={item_id} "
@@ -158,6 +237,11 @@ def _publish_selected_item(item: dict) -> dict:
         )
     except Exception as exc:
         error_message = str(exc).strip() or exc.__class__.__name__
+        if _is_instagram_publish_limit_error(exc):
+            _blocked_until, reason = _set_instagram_publish_limit_block()
+            print(f"[queue.publish] Publish blocked for item={item_id}: {reason}")
+            return _mark_item(item_id, status="queued", last_error=reason)
+
         print(f"[queue.publish] Publish failed for item={item_id}: {error_message}")
         traceback.print_exc()
         return _mark_item(item_id, status="failed", last_error=error_message)
@@ -360,12 +444,19 @@ def publish_next_queued_item(*, is_auto: bool = False) -> dict:
 
         if is_auto:
             result_status = result.get("status") or "unknown"
-            message = "Published successfully" if result_status == "published" else (
-                result.get("last_error") or "Publishing failed"
-            )
+            result_error = result.get("last_error") or ""
+            if result_status == "published":
+                message = "Published successfully"
+                recorded_status = result_status
+            elif "Instagram publish limit reached" in result_error:
+                message = result_error
+                recorded_status = "blocked"
+            else:
+                message = result_error or "Publishing failed"
+                recorded_status = result_status
             _record_auto_post_result(
                 item_id=result.get("id"),
-                status=result_status,
+                status=recorded_status,
                 message=message,
                 attempted_at=attempt_time,
             )
