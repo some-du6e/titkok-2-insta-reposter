@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import re
 import subprocess
 from io import BytesIO
@@ -20,7 +21,8 @@ from src.components.video_logic.render import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-VIDEOS_DIR = PROJECT_ROOT / "videos"
+DATA_DIR = Path(os.getenv("APP_DATA_DIR", str(PROJECT_ROOT))).resolve()
+VIDEOS_DIR = DATA_DIR / "videos"
 LOCAL_YT_DLP = PROJECT_ROOT / "yt-dlp.exe"
 REQUEST_TIMEOUT_SECONDS = 60
 REQUEST_HEADERS = {

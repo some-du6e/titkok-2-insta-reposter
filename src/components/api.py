@@ -25,16 +25,18 @@ from src.components.pipeline import (
     update_queue_settings,
 )
 from src.components.preview_service import PreviewGenerationError, build_preview_response
-from src.components.queue_store import PROJECT_ROOT, QueueItemNotFoundError
+from src.components.queue_store import QueueItemNotFoundError
 from src.components.queue_worker import start_queue_worker
 from src.components.system_update import (
     SystemUpdateError,
     run_system_restart,
     run_system_update,
 )
+from src.components.video_logic.render import COVER_IMAGE_PATH
 
 
 load_dotenv()
+PROJECT_ROOT = COVER_IMAGE_PATH.parent
 
 # init that shi
 www_dir = os.path.join(os.path.dirname(__file__), "..", "www")
@@ -282,6 +284,11 @@ def get_dashboard():
         return _json_error(str(e), 500)
 
 
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    return flask.jsonify({"ok": True})
+
+
 @app.route("/api/queue/<item_id>/preview", methods=["GET"])
 def get_queue_preview(item_id):
     try:
@@ -498,14 +505,14 @@ def retry_queue(item_id):
         return _json_error(str(e), 500)
 
 
-def _run_app(debug: bool, port: int):
+def _run_app(debug: bool, port: int, host: str = "127.0.0.1"):
     start_queue_worker(debug=debug)
-    app.run(debug=debug, port=port)
+    app.run(debug=debug, host=host, port=port)
 
 
 if __name__ == "__main__":
     _run_app(debug=True, port=6767)
 
 
-def runapi(debug=True, port=6767):
-    _run_app(debug=debug, port=port)
+def runapi(debug=True, port=6767, host="127.0.0.1"):
+    _run_app(debug=debug, port=port, host=host)

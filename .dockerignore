@@ -1,0 +1,16 @@
+.git
+.agents
+.claude
+.pytest_cache
+.venv
+__pycache__
+*.pyc
+.env
+videos
+queue.json
+captions.json
+yt-dlp.exe
+*.mp4
+*.tmp
+htmlcov
+.coverage

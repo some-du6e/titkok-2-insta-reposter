@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
@@ -9,7 +10,8 @@ class CaptionPayloadError(ValueError):
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CAPTIONS_PATH = PROJECT_ROOT / "captions.json"
+DATA_DIR = Path(os.getenv("APP_DATA_DIR", str(PROJECT_ROOT))).resolve()
+CAPTIONS_PATH = DATA_DIR / "captions.json"
 
 
 def normalize_captions(raw) -> list[str]:

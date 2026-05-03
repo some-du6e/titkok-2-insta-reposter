@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DATA_DIR = Path(os.getenv("APP_DATA_DIR", str(PROJECT_ROOT))).resolve()
 OUTPUT_WIDTH = 1080
 OUTPUT_HEIGHT = 1920
 FRAME_RATE = 30
-COVER_IMAGE_PATH = PROJECT_ROOT / "coverrrr.jpg"
+COVER_IMAGE_PATH = DATA_DIR / "coverrrr.jpg"
 INTRO_DURATION_SECONDS = 0.1
 PHOTO_FRAME_DURATION_SECONDS = 5.0
 
@@ -177,7 +179,7 @@ def render_photo_reel(
         rendered_images = images * repeat_count
 
         def _escape_manifest_path(path: Path) -> str:
-            return str(path.resolve()).replace("\\", "\\\\").replace("'", "\\'")
+            return str(path.resolve()).replace("'", "\\'")
 
         manifest_lines = ["ffconcat version 1.0"]
         for image in rendered_images:

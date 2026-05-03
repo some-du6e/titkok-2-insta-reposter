@@ -17,6 +17,7 @@ from src.components.video_logic.tiktok import (
     extract_tiktok_video_id,
     normalize_tiktok_url,
 )
+from src.components.video_logic.render import COVER_IMAGE_PATH
 from src.components.video_logic.uploadvideo import InstagramUploader
 
 
@@ -29,7 +30,6 @@ class QueueValidationError(QueuePipelineError):
 
 
 PUBLISH_LOCK = threading.RLock()
-COVER_IMAGE_PATH = queue_store.PROJECT_ROOT / "coverrrr.jpg"
 CAPTION_TAG_SUFFIX = "🌱✨🇯🇵👉🇭🇷🙈💧🇵🇱🇸🇬🌳🌍☀️🇺🇸 #japao #inovacao #sustentabilidade #tecnologia"
 INSTAGRAM_PUBLISH_LIMIT_ERROR_SUBCODE = "2207042"
 INSTAGRAM_PUBLISH_LIMIT_COOLDOWN = timedelta(hours=1)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -11,7 +12,8 @@ from src.components.queue_store import QueueItemNotFoundError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-PREVIEWS_DIR = PROJECT_ROOT / "videos" / "previews"
+DATA_DIR = Path(os.getenv("APP_DATA_DIR", str(PROJECT_ROOT))).resolve()
+PREVIEWS_DIR = DATA_DIR / "videos" / "previews"
 PREVIEW_WIDTH = 360
 PREVIEW_FORMAT = "jpg"
 

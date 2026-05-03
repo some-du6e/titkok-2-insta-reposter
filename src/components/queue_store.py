@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-QUEUE_PATH = PROJECT_ROOT / "queue.json"
+DATA_DIR = Path(os.getenv("APP_DATA_DIR", str(PROJECT_ROOT))).resolve()
+QUEUE_PATH = DATA_DIR / "queue.json"
 DEFAULT_AUTO_POST_ENABLED = False
 DEFAULT_AUTO_POST_INTERVAL_MINUTES = 15
 DEFAULT_PUBLIC_COLLECTION_ENABLED = False

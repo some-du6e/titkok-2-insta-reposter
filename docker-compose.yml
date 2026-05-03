@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      FLASK_DEBUG: "0"
+      APP_DATA_DIR: /app/data
+      WEB_CONCURRENCY: "1"
+    ports:
+      - "3000:3000"
+    volumes:
+      - app-data:/app/data
+
+volumes:
+  app-data:
