@@ -29,6 +29,7 @@
           <a class="nav-button" href="./index.html">Overview</a>
           <a class="nav-button" href="./queue.html" aria-current="page">Queue</a>
           <a class="nav-button" href="./captions.html">Captions</a>
+          <a class="nav-button" href="./settings.html">Settings</a>
         </nav>
       </div>
     </header>
@@ -39,7 +40,7 @@
           <p class="eyebrow">Queue operations</p>
           <h1>Keep the publish line clean.</h1>
           <p class="page-hero__body">
-            Review ready posts, control automation, manage the collection monitor, and intervene quickly when a publish fails.
+            Review ready posts and intervene quickly when a publish fails. Scheduler and monitor controls now live in Settings.
           </p>
         </div>
 
@@ -85,68 +86,24 @@
 
       <section class="queue-layout">
         <section class="queue-main">
-          <article class="panel queue-controls" aria-label="Automatic posting controls">
+          <article class="panel queue-status-panel" aria-label="Automatic posting status">
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Automation</p>
-                <h2>Scheduler and system controls</h2>
+                <h2>Scheduler status</h2>
               </div>
-              <p class="queue-controls__intro">Run oldest-first publishes on a cadence while this app stays online.</p>
-            </div>
-
-            <div class="queue-controls__body">
-              <label class="queue-toggle" for="auto-post-enabled">
-                <input id="auto-post-enabled" type="checkbox" />
-                <span>Enable auto-posting</span>
-              </label>
-
-              <label class="queue-field" for="auto-post-interval">
-                <span>Interval in minutes</span>
-                <input id="auto-post-interval" type="number" min="1" step="1" inputmode="numeric" />
-              </label>
-
-              <label class="queue-toggle" for="prepend-cover-intro-enabled">
-                <input id="prepend-cover-intro-enabled" type="checkbox" />
-                <span>Prepend cover intro frame</span>
-              </label>
-
-              <div class="queue-cover-upload">
-                <label class="queue-field queue-field--wide" for="cover-image-file">
-                  <span>Cover image file</span>
-                  <input id="cover-image-file" type="file" accept="image/*" />
-                </label>
-                <button type="button" id="cover-image-upload" class="queue-action queue-action--secondary">
-                  Upload cover image
-                </button>
-              </div>
-
-              <div class="queue-cover-upload">
-                <label class="queue-field queue-field--wide" for="cover-image-url">
-                  <span>Cover image from video URL</span>
-                  <input id="cover-image-url" type="url" placeholder="https://www.tiktok.com/@user/video/..." />
-                </label>
-                <button type="button" id="cover-image-from-url" class="queue-action queue-action--secondary">
-                  Use video cover
-                </button>
-              </div>
-
-              <div class="queue-controls__actions">
-                <button type="button" id="queue-settings-save" class="queue-action queue-action--secondary">
-                  Save settings
-                </button>
-                <button type="button" id="queue-run-next" class="queue-action">
-                  Run now
-                </button>
-                <button type="button" id="system-restart" class="queue-action queue-action--secondary">
-                  Restart app
-                </button>
-                <button type="button" id="system-update" class="queue-action queue-action--secondary">
-                  Update app
-                </button>
-              </div>
+              <a class="queue-action queue-action--secondary" href="./settings.html#automation-settings">Open settings</a>
             </div>
 
             <dl class="queue-runtime">
+              <div>
+                <dt>Mode</dt>
+                <dd id="queue-auto-mode">Manual</dd>
+              </div>
+              <div>
+                <dt>Cadence</dt>
+                <dd id="queue-auto-cadence">Disabled</dd>
+              </div>
               <div>
                 <dt>Next scheduled publish</dt>
                 <dd id="queue-next-run">Not scheduled</dd>
@@ -159,48 +116,35 @@
                 <dt>Last auto-post result</dt>
                 <dd id="queue-last-result">Nothing recorded yet</dd>
               </div>
+              <div>
+                <dt>Cover intro</dt>
+                <dd id="queue-cover-intro">Disabled</dd>
+              </div>
             </dl>
+
+            <div class="queue-controls__actions queue-controls__actions--compact">
+              <button type="button" id="queue-run-next" class="queue-action">Run next queued item</button>
+            </div>
           </article>
 
-          <article class="panel queue-controls" aria-label="Public collection monitor controls">
+          <article class="panel queue-status-panel" aria-label="Public collection monitor status">
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Ingestion</p>
-                <h2>Public collection monitor</h2>
+                <h2>Collection monitor status</h2>
               </div>
-              <p class="queue-controls__intro">Poll a public TikTok collection from the server without leaving a browser tab open.</p>
-            </div>
-
-            <div class="queue-controls__body queue-controls__body--collection">
-              <label class="queue-toggle" for="public-collection-enabled">
-                <input id="public-collection-enabled" type="checkbox" />
-                <span>Enable collection monitor</span>
-              </label>
-
-              <label class="queue-field queue-field--wide" for="public-collection-url">
-                <span>Public collection URL</span>
-                <input id="public-collection-url" type="url" inputmode="url" placeholder="https://www.tiktok.com/@user/collection/..." />
-              </label>
-
-              <label class="queue-field" for="public-collection-poll-seconds">
-                <span>Poll interval in seconds</span>
-                <input id="public-collection-poll-seconds" type="number" min="1" step="1" inputmode="numeric" />
-              </label>
-
-              <div class="queue-controls__actions">
-                <button type="button" id="public-collection-save" class="queue-action queue-action--secondary">
-                  Save monitor
-                </button>
-                <button type="button" id="public-collection-test" class="queue-action queue-action--secondary">
-                  Test URL
-                </button>
-                <button type="button" id="public-collection-sync" class="queue-action">
-                  Sync now
-                </button>
-              </div>
+              <a class="queue-action queue-action--secondary" href="./settings.html#collection-settings">Open settings</a>
             </div>
 
             <dl class="queue-runtime queue-runtime--monitor">
+              <div>
+                <dt>Monitor</dt>
+                <dd id="public-collection-mode">Disabled</dd>
+              </div>
+              <div>
+                <dt>Poll cadence</dt>
+                <dd id="public-collection-cadence">Unknown</dd>
+              </div>
               <div>
                 <dt>Last monitor status</dt>
                 <dd id="public-collection-status">Idle</dd>
@@ -245,11 +189,11 @@
               </article>
               <article class="queue-note">
                 <strong>Cover intro is global.</strong>
-                <p>Uploading a new cover image changes the still intro frame used during media preparation.</p>
+                <p>Manage the global intro frame from Settings when media preparation needs a new still.</p>
               </article>
               <article class="queue-note">
                 <strong>Collection sync starts conservative.</strong>
-                <p>The first monitor sync seeds a baseline; later syncs only queue newly discovered items.</p>
+                <p>Open Settings to test or sync the public collection monitor.</p>
               </article>
             </div>
           </article>

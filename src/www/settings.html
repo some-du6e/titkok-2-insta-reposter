@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TT2IG Settings</title>
+  <meta
+    name="description"
+    content="Configure TT2IG automation, cover intro, public collection ingestion, and system maintenance."
+  />
+  <link rel="stylesheet" href="./styles/shared.css" />
+  <link rel="stylesheet" href="./styles/queue.css" />
+  <link rel="stylesheet" href="./styles/settings.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand-lockup" href="./index.html" aria-label="TT2IG overview">
+          <span class="brand-lockup__mark">TT2IG</span>
+          <span class="brand-lockup__text">
+            <strong>Operator console</strong>
+            <span>Queue, caption, and ingestion control room</span>
+          </span>
+        </a>
+
+        <nav class="nav-strip" aria-label="Primary">
+          <a class="nav-button" href="./index.html">Overview</a>
+          <a class="nav-button" href="./queue.html">Queue</a>
+          <a class="nav-button" href="./captions.html">Captions</a>
+          <a class="nav-button" href="./settings.html" aria-current="page">Settings</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content" class="page-shell settings-page">
+      <section class="page-hero settings-hero">
+        <div class="page-hero__intro">
+          <p class="eyebrow">Control surface</p>
+          <h1>Tune the machine away from the queue.</h1>
+          <p class="page-hero__body">
+            Keep recurring automation, ingestion, cover, and maintenance choices in one quieter workspace.
+          </p>
+        </div>
+
+        <div class="hero-callout">
+          <p class="hero-callout__label">Settings posture</p>
+          <strong id="settings-posture">Loading controls...</strong>
+          <p id="settings-posture-copy">Pulling scheduler and collection monitor state.</p>
+        </div>
+      </section>
+
+      <p id="settings-feedback" class="feedback-banner" hidden></p>
+      <section id="settings-operation-status" class="operation-banner" aria-live="polite" hidden>
+        <div class="operation-banner__eyebrow">Live task</div>
+        <strong id="settings-operation-title">Working</strong>
+        <p id="settings-operation-copy">The request is processing.</p>
+      </section>
+
+      <section class="settings-grid" aria-label="Application settings">
+        <article id="automation-settings" class="panel settings-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Automation</p>
+              <h2>Scheduler</h2>
+            </div>
+            <span id="auto-post-status" class="status-badge">Loading</span>
+          </div>
+
+          <div class="queue-controls__body settings-form-grid">
+            <label class="queue-toggle" for="auto-post-enabled">
+              <input id="auto-post-enabled" type="checkbox" />
+              <span>Enable auto-posting</span>
+            </label>
+
+            <label class="queue-field" for="auto-post-interval">
+              <span>Interval in minutes</span>
+              <input id="auto-post-interval" type="number" min="1" step="1" inputmode="numeric" />
+            </label>
+
+            <label class="queue-toggle" for="prepend-cover-intro-enabled">
+              <input id="prepend-cover-intro-enabled" type="checkbox" />
+              <span>Prepend cover intro frame</span>
+            </label>
+
+            <div class="queue-controls__actions">
+              <button type="button" id="queue-settings-save" class="queue-action">Save scheduler</button>
+            </div>
+          </div>
+
+          <dl class="queue-runtime">
+            <div>
+              <dt>Next scheduled publish</dt>
+              <dd id="queue-next-run">Not scheduled</dd>
+            </div>
+            <div>
+              <dt>Last auto-post attempt</dt>
+              <dd id="queue-last-attempt">No attempts yet</dd>
+            </div>
+            <div>
+              <dt>Last auto-post result</dt>
+              <dd id="queue-last-result">Nothing recorded yet</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article id="cover-settings" class="panel settings-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Media prep</p>
+              <h2>Cover intro</h2>
+            </div>
+          </div>
+
+          <div class="settings-stack">
+            <div class="queue-cover-upload">
+              <label class="queue-field queue-field--wide" for="cover-image-file">
+                <span>Cover image file</span>
+                <input id="cover-image-file" type="file" accept="image/*" />
+              </label>
+              <button type="button" id="cover-image-upload" class="queue-action queue-action--secondary">
+                Upload cover image
+              </button>
+            </div>
+
+            <div class="queue-cover-upload">
+              <label class="queue-field queue-field--wide" for="cover-image-url">
+                <span>Cover image from video URL</span>
+                <input id="cover-image-url" type="url" placeholder="https://www.tiktok.com/@user/video/..." />
+              </label>
+              <button type="button" id="cover-image-from-url" class="queue-action queue-action--secondary">
+                Use video cover
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article id="collection-settings" class="panel settings-panel settings-panel--wide">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Ingestion</p>
+              <h2>Public collection monitor</h2>
+            </div>
+            <span id="public-collection-live-status" class="status-badge">Loading</span>
+          </div>
+
+          <div class="queue-controls__body queue-controls__body--collection settings-form-grid">
+            <label class="queue-toggle" for="public-collection-enabled">
+              <input id="public-collection-enabled" type="checkbox" />
+              <span>Enable collection monitor</span>
+            </label>
+
+            <label class="queue-field queue-field--wide" for="public-collection-url">
+              <span>Public collection URL</span>
+              <input id="public-collection-url" type="url" inputmode="url" placeholder="https://www.tiktok.com/@user/collection/..." />
+            </label>
+
+            <label class="queue-field" for="public-collection-poll-seconds">
+              <span>Poll interval in seconds</span>
+              <input id="public-collection-poll-seconds" type="number" min="1" step="1" inputmode="numeric" />
+            </label>
+
+            <div class="queue-controls__actions">
+              <button type="button" id="public-collection-save" class="queue-action">Save monitor</button>
+              <button type="button" id="public-collection-test" class="queue-action queue-action--secondary">Test URL</button>
+              <button type="button" id="public-collection-sync" class="queue-action queue-action--secondary">Sync now</button>
+            </div>
+          </div>
+
+          <dl class="queue-runtime queue-runtime--monitor">
+            <div>
+              <dt>Last monitor status</dt>
+              <dd id="public-collection-status">Idle</dd>
+            </div>
+            <div>
+              <dt>Last checked</dt>
+              <dd id="public-collection-last-checked">Never</dd>
+            </div>
+            <div>
+              <dt>Items found</dt>
+              <dd id="public-collection-items-found">0</dd>
+            </div>
+            <div>
+              <dt>Items queued</dt>
+              <dd id="public-collection-items-queued">0</dd>
+            </div>
+            <div>
+              <dt>Extract strategy</dt>
+              <dd id="public-collection-strategy">none</dd>
+            </div>
+            <div>
+              <dt>Last error</dt>
+              <dd id="public-collection-error">None</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article id="system-settings" class="panel settings-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Maintenance</p>
+              <h2>App system</h2>
+            </div>
+          </div>
+
+          <div class="settings-action-stack">
+            <button type="button" id="system-update" class="queue-action">Update app</button>
+            <button type="button" id="system-restart" class="queue-action queue-action--secondary">Restart app</button>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="./scripts/settings.js"></script>
+</body>
+</html>
