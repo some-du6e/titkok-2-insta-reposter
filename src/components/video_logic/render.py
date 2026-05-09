@@ -126,16 +126,16 @@ def get_media_duration(media_path: str | Path) -> float:
 def _build_cover_image_filter(input_label: str, output_label: str) -> str:
     return (
         f"[{input_label}]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:force_original_aspect_ratio=increase,"
-        f"crop={OUTPUT_WIDTH}:{OUTPUT_HEIGHT},boxblur=20:10[coverbg];"
+        f"crop={OUTPUT_WIDTH}:{OUTPUT_HEIGHT},setsar=1,boxblur=20:10[coverbg];"
         f"[{input_label}]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:force_original_aspect_ratio=decrease[coverfg];"
-        f"[coverbg][coverfg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[{output_label}]"
+        f"[coverbg][coverfg]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[{output_label}]"
     )
 
 
 def _build_reel_video_filter(input_label: str, output_label: str) -> str:
     return (
         f"[{input_label}]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:force_original_aspect_ratio=decrease,"
-        f"pad={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p[{output_label}]"
+        f"pad={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[{output_label}]"
     )
 
 

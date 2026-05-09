@@ -269,6 +269,8 @@ class RenderHelpersTestCase(unittest.TestCase):
             self.assertIn("0.100", command)
             self.assertIn("-filter_complex", command)
             filter_graph = command[command.index("-filter_complex") + 1]
+            self.assertIn("crop=1080:1920,setsar=1,boxblur=20:10[coverbg]", filter_graph)
+            self.assertIn("pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[mainv]", filter_graph)
             self.assertIn("[coverv][mainv]concat=n=2:v=1:a=0[v]", filter_graph)
             self.assertIn("[2:a][1:a:0]concat=n=2:v=0:a=1[a]", filter_graph)
 
